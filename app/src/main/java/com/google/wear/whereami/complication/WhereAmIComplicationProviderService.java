@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Icon;
 import android.location.Address;
 import android.location.Location;
 import android.support.wearable.complications.ComplicationData;
@@ -92,6 +93,7 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
                         new ComplicationData.Builder(ComplicationData.TYPE_SHORT_TEXT)
                                 .setShortText(getTimeAgo(location))
                                 .setContentDescription(getFullDescription(location, address))
+                                .setIcon(Icon.createWithResource(this, R.drawable.ic_my_location))
                                 .setTapAction(getTapAction())
                                 .build();
                 break;
@@ -101,6 +103,7 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
                                 .setLongTitle(getTimeAgo(location))
                                 .setLongText(getAddressDescriptionText(this, address))
                                 .setContentDescription(getFullDescription(location, address))
+                                .setIcon(Icon.createWithResource(this, R.drawable.ic_my_location))
                                 .setTapAction(getTapAction())
                                 .build();
                 break;
