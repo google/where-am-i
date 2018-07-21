@@ -1,7 +1,6 @@
 package com.google.wear.whereami.complication;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -14,17 +13,19 @@ import android.support.wearable.complications.ComplicationProviderService;
 import android.support.wearable.complications.ComplicationText;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.Pair;
 
 import com.google.android.gms.location.LocationRequest;
 import com.google.wear.whereami.R;
 import com.google.wear.whereami.WhereAmIActivity;
 import com.patloew.rxlocation.FusedLocation;
 import com.patloew.rxlocation.RxLocation;
-import com.tbruyelle.rxpermissions2.RxPermissions;
 
 import java.util.concurrent.TimeUnit;
 
+import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.schedulers.Schedulers;
 
 public class WhereAmIComplicationProviderService extends ComplicationProviderService {
 
@@ -51,29 +52,37 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
 
         Log.d(TAG, "onComplicationUpdate() id: " + complicationId);
 
-        Location location = null;
-        Address address = null;
-        try {
-            if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                FusedLocation locationProvider = rxLocation.location();
-                //        subscriptions.add(
-                location = locationProvider
-                        .isLocationAvailable()
-                        .flatMapObservable((hasLocation) -> hasLocation ?
-                                locationProvider.lastLocation().toObservable() :
-                                locationProvider.updates(createLocationRequest()))
-                        .blockingFirst();
-
-                address = rxLocation.geocoding()
-                        .fromLocation(location)
-                        .blockingGet();
-            } else {
-                Log.w(TAG, "No location permission!");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to look up address", e);
+        final Observable<Pair<Location, Address>> task;
+        if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            FusedLocation locationProvider = rxLocation.location();
+            task = locationProvider
+                    .isLocationAvailable()
+                    .subscribeOn(Schedulers.io())
+                    .flatMapObservable((hasLocation) -> hasLocation ?
+                            locationProvider.lastLocation().toObservable() :
+                            locationProvider.updates(createLocationRequest()))
+                    .flatMapMaybe((location) -> rxLocation.geocoding()
+                            .fromLocation(location)
+                            .map(address -> Pair.create(location, address)));
+        } else {
+            task = Observable.error(new SecurityException("No location permission!"));
         }
 
+        subscriptions.add(
+            task
+                .subscribe(
+                        // onNext
+                        (locationAddressPair -> updateComplication(complicationId, dataType, manager, locationAddressPair.first, locationAddressPair.second)),
+                        // onError
+                        (error) -> {
+                            Log.e(TAG, "Error retreiving location", error);
+                            updateComplication(complicationId, dataType, manager, null, null);
+                        }
+                )
+        );
+    }
+
+    private void updateComplication(int complicationId, int dataType, ComplicationManager manager, Location location, Address address) {
         Log.d(TAG, "Address: " + address);
 
         ComplicationData complicationData = null;
@@ -109,7 +118,6 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
             manager.noUpdateRequired(complicationId);
         }
     }
-
 
     private PendingIntent getTapAction() {
         Intent intent = new Intent(this, WhereAmIActivity.class)

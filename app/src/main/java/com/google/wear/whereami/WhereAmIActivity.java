@@ -22,7 +22,9 @@ import com.tbruyelle.rxpermissions2.RxPermissions;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.schedulers.Schedulers;
 
 public class WhereAmIActivity extends FragmentActivity {
 
@@ -46,6 +48,7 @@ public class WhereAmIActivity extends FragmentActivity {
 
         subscriptions.add(
             checkPermissions()
+                .subscribeOn(Schedulers.io())
                 .flatMap((isGranted) -> rxLocation.location().updates(createLocationRequest()))
                 .flatMapMaybe((location ->
                     rxLocation.geocoding()
@@ -53,6 +56,7 @@ public class WhereAmIActivity extends FragmentActivity {
                             .map(address -> Pair.create(location, address))
 //                            .toSingle()
                 ))
+                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                     // onNext
                     (locationAndAddress) -> {
