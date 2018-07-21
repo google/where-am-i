@@ -9,6 +9,7 @@ import android.support.v4.app.FragmentActivity;
 import android.support.wearable.complications.ProviderUpdateRequester;
 import android.text.format.DateUtils;
 import android.util.Pair;
+import android.view.View;
 import android.widget.TextView;
 
 import com.google.android.gms.location.LocationRequest;
