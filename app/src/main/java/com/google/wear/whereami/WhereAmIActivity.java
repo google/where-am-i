@@ -4,11 +4,8 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
-import android.support.wearable.activity.WearableActivity;
 import android.support.wearable.complications.ProviderUpdateRequester;
 import android.text.format.DateUtils;
 import android.util.Pair;
@@ -30,7 +27,7 @@ public class WhereAmIActivity extends FragmentActivity {
 
     private final CompositeDisposable subscriptions = new CompositeDisposable();
 
-    private TextView mTextView;
+    private TextView textView;
     private RxLocation rxLocation;
 
     @SuppressLint("MissingPermission")
@@ -39,10 +36,7 @@ public class WhereAmIActivity extends FragmentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.where_am_i_activity);
 
-        mTextView = (TextView) findViewById(R.id.text);
-
-        // Enables Always-on
-//        setAmbientEnabled();
+        textView = (TextView) findViewById(R.id.text);
 
         rxLocation = new RxLocation(this);
 
@@ -54,19 +48,18 @@ public class WhereAmIActivity extends FragmentActivity {
                     rxLocation.geocoding()
                             .fromLocation(location)
                             .map(address -> Pair.create(location, address))
-//                            .toSingle()
                 ))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                     // onNext
                     (locationAndAddress) -> {
-                        mTextView.setText(getString(
-                            R.string.address_as_of_time_ago,
+                        textView.setText(getString(
+                            R.string.address_as_of_time_activity,
                             WhereAmIComplicationProviderService.getAddressDescription(this, locationAndAddress.second),
                             getTimeAgo(locationAndAddress.first.getTime())));
                     },
                     // onError
-                    (error) -> mTextView.setText(R.string.location_error)
+                    (error) -> textView.setText(R.string.location_error)
                 )
         );
     }
@@ -107,7 +100,6 @@ public class WhereAmIActivity extends FragmentActivity {
     private static LocationRequest createLocationRequest() {
         return LocationRequest.create()
                 .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-//                .setExpirationDuration(TimeUnit.SECONDS.toMillis(130))
                 .setInterval(TimeUnit.SECONDS.toMillis(10))
                 .setSmallestDisplacement(50);
     }
