@@ -90,7 +90,7 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
                 complicationData =
                         new ComplicationData.Builder(ComplicationData.TYPE_LONG_TEXT)
                                 .setLongTitle(getTimeAgo(location))
-                                .setLongText(getAddressDescription(this, address))
+                                .setLongText(getAddressDescriptionText(this, address))
                                 .setContentDescription(getFullDescription(location, address))
                                 .setTapAction(getTapAction())
                                 .build();
@@ -125,12 +125,18 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
                 .build();
     }
 
-    public static ComplicationText getAddressDescription(Context context, Address address) {
-        if (address == null) return  ComplicationText.plainText(context.getString(R.string.no_location));
-        String subThoroughfare = address.getSubThoroughfare();
-        return ComplicationText.plainText(address.getThoroughfare() +
-                (TextUtils.isEmpty(subThoroughfare) ? "" : ": " + subThoroughfare));
+    public static ComplicationText getAddressDescriptionText(Context context, Address address) {
+        return ComplicationText.plainText(getAddressDescription(context, address));
     }
+
+    public static String getAddressDescription(Context context, Address address) {
+        if (address == null) return context.getString(R.string.no_location);
+        String subThoroughfare = address.getSubThoroughfare();
+        String thoroughfare = address.getThoroughfare();
+        if (thoroughfare == null) return address.toString();
+        return (TextUtils.isEmpty(subThoroughfare) ? "" : subThoroughfare +  " ") + thoroughfare;
+    }
+
 
     private ComplicationText getTimeAgo(Location location) {
         if (location == null) return ComplicationText.plainText("--");

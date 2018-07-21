@@ -2,11 +2,14 @@ package com.google.wear.whereami;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.ComponentName;
+import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.support.wearable.activity.WearableActivity;
+import android.support.wearable.complications.ProviderUpdateRequester;
 import android.text.format.DateUtils;
 import android.util.Pair;
 import android.widget.TextView;
@@ -53,7 +56,7 @@ public class WhereAmIActivity extends FragmentActivity {
                 .subscribe(
                     // onNext
                     (locationAndAddress) -> {
-                    mTextView.setText(getString(
+                        mTextView.setText(getString(
                             R.string.address_as_of_time_ago,
                             WhereAmIComplicationProviderService.getAddressDescription(this, locationAndAddress.second),
                             getTimeAgo(locationAndAddress.first.getTime())));
@@ -68,6 +71,19 @@ public class WhereAmIActivity extends FragmentActivity {
     public void onDestroy() {
         subscriptions.dispose();
         super.onDestroy();
+    }
+
+    @Override
+    protected void onStop() {
+        forceComplicationUpdate();
+        super.onStop();
+    }
+
+    private void forceComplicationUpdate() {
+        if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            new ProviderUpdateRequester(this, new ComponentName(this, WhereAmIComplicationProviderService.class))
+                    .requestUpdateAll();
+        }
     }
 
     private Observable<Boolean> checkPermissions() {
