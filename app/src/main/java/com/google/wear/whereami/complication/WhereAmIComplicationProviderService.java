@@ -64,8 +64,9 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
 
     @Override
     public void onComplicationUpdate(int complicationId, int dataType, ComplicationManager manager) {
-
-        Log.d(TAG, "onComplicationUpdate() id: " + complicationId);
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "onComplicationUpdate() id: " + complicationId);
+        }
 
         final Observable<Pair<Location, Address>> task;
         if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -98,7 +99,9 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
     }
 
     private void updateComplication(int complicationId, int dataType, ComplicationManager manager, Location location, Address address) {
-        Log.d(TAG, "Address: " + address);
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "Address: " + address);
+        }
 
         ComplicationData complicationData = null;
         switch (dataType) {
