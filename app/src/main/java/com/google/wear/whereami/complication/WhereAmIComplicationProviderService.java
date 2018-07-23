@@ -165,6 +165,7 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
     public static LocationRequest createLocationRequest() {
         return LocationRequest.create()
                 .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
+                .setNumUpdates(1)
                 .setExpirationDuration(TimeUnit.SECONDS.toMillis(30));
     }
 }
