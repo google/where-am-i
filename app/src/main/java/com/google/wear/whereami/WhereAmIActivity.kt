@@ -17,64 +17,56 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.pm.PackageManager
-import android.location.Address
-import android.location.Location
 import android.os.Bundle
 import android.text.format.DateUtils
-import android.util.Pair
-import android.view.View
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.wear.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.google.android.gms.location.LocationRequest
 import com.google.wear.whereami.complication.WhereAmIComplicationProviderService.Companion.getAddressDescription
-import com.patloew.rxlocation.RxLocation
+import com.patloew.colocation.CoGeocoder
+import com.patloew.colocation.CoLocation
 import com.tbruyelle.rxpermissions2.RxPermissions
-import io.reactivex.Observable
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.rx2.awaitSingle
 
 class WhereAmIActivity : FragmentActivity() {
-    private val subscriptions = CompositeDisposable()
-    private var textView: TextView? = null
-    private var rxLocation: RxLocation? = null
+    private lateinit var coGeocoder: CoGeocoder
+    private lateinit var coLocation: CoLocation
+    private lateinit var textView: TextView
 
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.where_am_i_activity)
-        textView = findViewById<View>(R.id.text) as TextView
-        rxLocation = RxLocation(this)
-        subscriptions.add(
-            checkPermissions()
-                .subscribeOn(Schedulers.io())
-                .flatMap {
-                    rxLocation!!.location().updates(createLocationRequest())
-                }
-                .flatMapMaybe { location: Location ->
-                    rxLocation!!.geocoding()
-                        .fromLocation(location)
-                        .map { address: Address -> Pair.create(location, address) }
-                }
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe( // onNext
-                    { locationAndAddress: Pair<Location, Address> ->
-                        textView!!.text = getString(
-                            R.string.address_as_of_time_activity,
-                            getAddressDescription(this, locationAndAddress.second),
-                            getTimeAgo(locationAndAddress.first.time)
-                        )
-                    }
-                )  // onError
-                { textView!!.setText(R.string.location_error) }
-        )
-    }
+        textView = findViewById(R.id.text)
 
-    public override fun onDestroy() {
-        subscriptions.dispose()
-        super.onDestroy()
+        coLocation = CoLocation.from(applicationContext)
+        coGeocoder = CoGeocoder.from(applicationContext)
+
+        lifecycleScope.launch {
+            try {
+                checkPermissions()
+
+                val location =
+                    coLocation.getCurrentLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
+                        ?: throw IllegalArgumentException("No location")
+
+                val address = coGeocoder.getAddressFromLocation(location)
+                    ?: throw IllegalArgumentException("No location")
+
+                val locationResult = ResolvedLocation(location, address)
+
+                textView.text = getString(
+                    R.string.address_as_of_time_activity,
+                    getAddressDescription(this@WhereAmIActivity, locationResult),
+                    getTimeAgo(locationResult.location.time)
+                )
+            } catch (e: Exception) {
+                textView.setText(R.string.location_error)
+            }
+        }
     }
 
     override fun onStop() {
@@ -93,25 +85,16 @@ class WhereAmIActivity : FragmentActivity() {
         }
     }
 
-    private fun checkPermissions(): Observable<Boolean> {
-        return RxPermissions(this)
+    suspend fun checkPermissions() {
+        RxPermissions(this)
             .request(Manifest.permission.ACCESS_FINE_LOCATION)
             .map { isGranted: Boolean ->
                 if (isGranted) return@map true
                 throw SecurityException("No location permission")
-            }
+            }.awaitSingle()
     }
 
     private fun getTimeAgo(time: Long): CharSequence {
         return DateUtils.getRelativeTimeSpanString(time)
-    }
-
-    companion object {
-        private fun createLocationRequest(): LocationRequest {
-            return LocationRequest.create()
-                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                .setInterval(TimeUnit.SECONDS.toMillis(10))
-                .setSmallestDisplacement(50f)
-        }
     }
 }

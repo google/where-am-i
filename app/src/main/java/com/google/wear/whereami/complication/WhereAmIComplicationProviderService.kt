@@ -25,31 +25,37 @@ import android.location.LocationManager
 import android.os.RemoteException
 import android.text.TextUtils
 import android.util.Log
-import android.util.Pair
 import androidx.wear.complications.data.*
 import androidx.wear.complications.datasource.ComplicationDataSourceService
 import androidx.wear.complications.datasource.ComplicationRequest
 import com.google.android.gms.location.LocationRequest
-import com.google.wear.whereami.R
-import com.google.wear.whereami.WhereAmIActivity
-import com.patloew.rxlocation.RxLocation
-import io.reactivex.Observable
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
+import com.google.wear.whereami.*
+import com.patloew.colocation.CoGeocoder
+import com.patloew.colocation.CoLocation
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.TimeUnit
 
 class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
-    private var rxLocation: RxLocation? = null
-    private val subscriptions = CompositeDisposable()
+    private lateinit var coGeocoder: CoGeocoder
+    private lateinit var coLocation: CoLocation
+
+    private val serviceJob = Job()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+
     override fun onCreate() {
         super.onCreate()
-        rxLocation = RxLocation(this)
+
+        coLocation = CoLocation.from(applicationContext)
+        coGeocoder = CoGeocoder.from(applicationContext)
     }
 
     override fun onDestroy() {
-        subscriptions.dispose()
         super.onDestroy()
+        serviceJob.cancel()
     }
 
     override fun onComplicationRequest(
@@ -59,44 +65,25 @@ class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
         if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, "onComplicationUpdate(): $request")
         }
-        val task: Observable<Pair<Location, Address>>
-        task =
-            if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                val locationProvider = rxLocation!!.location()
-                locationProvider
-                    .isLocationAvailable
-                    .subscribeOn(Schedulers.io())
-                    .flatMapObservable { hasLocation: Boolean ->
-                        if (hasLocation) locationProvider.lastLocation()
-                            .toObservable() else locationProvider.updates(
-                            createLocationRequest()
-                        )
-                    }
-                    .flatMapMaybe { location: Location ->
-                        rxLocation!!.geocoding()
-                            .fromLocation(location)
-                            .map { address: Address -> Pair.create(location, address) }
-                    }
-            } else {
-                Observable.error(SecurityException("No location permission!"))
-            }
-        subscriptions.add(
-            task
-                .subscribe( // onNext
-                    { locationAddressPair: Pair<Location, Address> ->
-                        updateComplication(
-                            request,
-                            listener,
-                            locationAddressPair.first,
-                            locationAddressPair.second
-                        )
-                    }
-                )  // onError
-                { error: Throwable? ->
-                    Log.w(TAG, "Error retrieving location", error)
-                    updateComplication(request, listener, null, null)
-                }
-        )
+
+        serviceScope.launch {
+            updateComplication(request, listener, readLocationResult())
+        }
+    }
+
+    suspend fun readLocationResult(): LocationResult {
+        if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return PermissionError
+        }
+
+        val location =
+            coLocation.getCurrentLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
+                ?: return NoLocation
+
+        val address = coGeocoder.getAddressFromLocation(location) ?: return Unknown
+
+        val locationResult = ResolvedLocation(location, address)
+        return ResolvedLocation(location, address)
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? {
@@ -105,10 +92,13 @@ class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
         location.latitude = 0.0
         val address = Address(Locale.ENGLISH)
         address.countryName = "Null Island"
+
+        val locationResult = ResolvedLocation(location, address)
+
         return when (type) {
             ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
-                getTimeAgo(location),
-                getFullDescription(location, address)
+                getTimeAgo(locationResult),
+                getFullDescription(locationResult)
             )
                 .setMonochromaticImage(
                     MonochromaticImage.Builder(
@@ -121,10 +111,10 @@ class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
                 .setTapAction(tapAction)
                 .build()
             ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
-                getAddressDescriptionText(this, address),
-                getFullDescription(location, address)
+                getAddressDescriptionText(this, locationResult),
+                getFullDescription(locationResult)
             )
-                .setTitle(getTimeAgo(location))
+                .setTitle(getTimeAgo(locationResult))
                 .setMonochromaticImage(
                     MonochromaticImage.Builder(
                         Icon.createWithResource(
@@ -143,18 +133,18 @@ class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
     private fun updateComplication(
         complicationRequest: ComplicationRequest,
         complicationRequestListener: ComplicationRequestListener,
-        location: Location?,
-        address: Address?
+        location: LocationResult
     ) {
         if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "Address: $address")
+            Log.d(TAG, "Address: $location")
         }
+
         var complicationData: ComplicationData? = null
         when (complicationRequest.complicationType) {
             ComplicationType.SHORT_TEXT -> complicationData =
                 ShortTextComplicationData.Builder(
                     getTimeAgo(location),
-                    getFullDescription(location, address)
+                    getFullDescription(location)
                 )
                     .setMonochromaticImage(
                         MonochromaticImage.Builder(
@@ -167,8 +157,8 @@ class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
                     .setTapAction(tapAction)
                     .build()
             ComplicationType.LONG_TEXT -> complicationData = LongTextComplicationData.Builder(
-                getAddressDescriptionText(this, address),
-                getFullDescription(location, address)
+                getAddressDescriptionText(this, location),
+                getFullDescription(location)
             )
                 .setTitle(getTimeAgo(location))
                 .setMonochromaticImage(
@@ -203,47 +193,46 @@ class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
             )
         }
 
-    private fun getFullDescription(location: Location?, address: Address?): ComplicationText {
-        return if (location == null || address == null) PlainComplicationText.Builder(getString(R.string.no_location))
-            .build() else getTimeAgo(
-            location.time
-        )
-            .build()
+    private fun getFullDescription(location: LocationResult): ComplicationText {
+        return if (location is ResolvedLocation)
+            getTimeAgo(location.location.time).build()
+        else
+            PlainComplicationText.Builder(getString(R.string.no_location)).build()
     }
 
-    private fun getTimeAgo(location: Location?): ComplicationText {
-        return if (location == null) PlainComplicationText.Builder("--").build() else getTimeAgo(
-            location.time
-        ).build()
+    private fun getTimeAgo(location: LocationResult): ComplicationText {
+        return if (location is ResolvedLocation)
+            getTimeAgo(location.location.time).build()
+        else
+            PlainComplicationText.Builder("--").build()
     }
 
     private fun getTimeAgo(fromTime: Long): TimeDifferenceComplicationText.Builder {
         return TimeDifferenceComplicationText.Builder(
             TimeDifferenceStyle.SHORT_SINGLE_UNIT,
             CountUpTimeReference(fromTime)
-        )
-            .setMinimumTimeUnit(TimeUnit.MINUTES)
-            .setDisplayAsNow(true)
+        ).apply {
+            setMinimumTimeUnit(TimeUnit.MINUTES)
+            setDisplayAsNow(true)
+        }
     }
 
     companion object {
         private const val TAG = "WhereAmIComplication"
-        fun getAddressDescriptionText(context: Context, address: Address?): ComplicationText {
-            return PlainComplicationText.Builder(getAddressDescription(context, address)).build()
+
+        fun getAddressDescriptionText(context: Context, location: LocationResult): ComplicationText {
+            return if (location is ResolvedLocation)
+                return PlainComplicationText.Builder(getAddressDescription(context, location)).build()
+            else
+                PlainComplicationText.Builder(context.getString(R.string.no_location)).build()
+
         }
 
-        fun getAddressDescription(context: Context, address: Address?): String {
-            if (address == null) return context.getString(R.string.no_location)
+        fun getAddressDescription(context: Context, location: ResolvedLocation): String {
+            val address = location.address
             val subThoroughfare = address.subThoroughfare
             val thoroughfare = address.thoroughfare ?: return address.countryName
             return (if (TextUtils.isEmpty(subThoroughfare)) "" else "$subThoroughfare ") + thoroughfare
-        }
-
-        fun createLocationRequest(): LocationRequest {
-            return LocationRequest.create()
-                .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
-                .setNumUpdates(1)
-                .setExpirationDuration(TimeUnit.SECONDS.toMillis(30))
         }
     }
 }
