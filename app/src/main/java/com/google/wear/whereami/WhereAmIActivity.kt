@@ -15,25 +15,21 @@ package com.google.wear.whereami
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.ComponentName
-import android.content.pm.PackageManager
 import android.os.Bundle
-import android.text.format.DateUtils
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.wear.complications.datasource.ComplicationDataSourceUpdateRequester
-import com.google.android.gms.location.LocationRequest
-import com.google.wear.whereami.complication.WhereAmIComplicationProviderService.Companion.getAddressDescription
-import com.patloew.colocation.CoGeocoder
-import com.patloew.colocation.CoLocation
+import com.google.wear.whereami.data.LocationViewModel
+import com.google.wear.whereami.data.ResolvedLocation
+import com.google.wear.whereami.format.getAddressDescription
+import com.google.wear.whereami.format.getTimeAgo
 import com.tbruyelle.rxpermissions2.RxPermissions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.awaitSingle
 
 class WhereAmIActivity : FragmentActivity() {
-    private lateinit var coGeocoder: CoGeocoder
-    private lateinit var coLocation: CoLocation
+    private lateinit var locationViewModel: LocationViewModel
+
     private lateinit var textView: TextView
 
     @SuppressLint("MissingPermission")
@@ -42,59 +38,35 @@ class WhereAmIActivity : FragmentActivity() {
         setContentView(R.layout.where_am_i_activity)
         textView = findViewById(R.id.text)
 
-        coLocation = CoLocation.from(applicationContext)
-        coGeocoder = CoGeocoder.from(applicationContext)
+        locationViewModel = LocationViewModel(applicationContext)
 
         lifecycleScope.launch {
-            try {
-                checkPermissions()
+            checkPermissions()
 
-                val location =
-                    coLocation.getCurrentLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
-                        ?: throw IllegalArgumentException("No location")
+            val location = locationViewModel.readLocationResult()
 
-                val address = coGeocoder.getAddressFromLocation(location)
-                    ?: throw IllegalArgumentException("No location")
-
-                val locationResult = ResolvedLocation(location, address)
-
+            if (location is ResolvedLocation) {
                 textView.text = getString(
                     R.string.address_as_of_time_activity,
-                    getAddressDescription(this@WhereAmIActivity, locationResult),
-                    getTimeAgo(locationResult.location.time)
+                    getAddressDescription(location),
+                    getTimeAgo(location.location.time)
                 )
-            } catch (e: Exception) {
+            } else {
                 textView.setText(R.string.location_error)
             }
         }
     }
 
     override fun onStop() {
-        forceComplicationUpdate()
+        locationViewModel.forceComplicationUpdate()
         super.onStop()
-    }
-
-    private fun forceComplicationUpdate() {
-        if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            val request = ComplicationDataSourceUpdateRequester(
-                applicationContext, ComponentName.createRelative(
-                    applicationContext, ".complication.WhereAmIComplicationProviderService"
-                )
-            )
-            request.requestUpdateAll()
-        }
     }
 
     suspend fun checkPermissions() {
         RxPermissions(this)
             .request(Manifest.permission.ACCESS_FINE_LOCATION)
-            .map { isGranted: Boolean ->
-                if (isGranted) return@map true
-                throw SecurityException("No location permission")
+            .doOnNext { isGranted ->
+                if (!isGranted) throw SecurityException("No location permission")
             }.awaitSingle()
-    }
-
-    private fun getTimeAgo(time: Long): CharSequence {
-        return DateUtils.getRelativeTimeSpanString(time)
     }
 }
