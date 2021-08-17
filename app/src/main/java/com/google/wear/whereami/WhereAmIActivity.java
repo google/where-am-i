@@ -19,12 +19,11 @@ import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
-import android.support.wearable.complications.ProviderUpdateRequester;
+import androidx.fragment.app.FragmentActivity;
 import android.text.format.DateUtils;
 import android.util.Pair;
-import android.view.View;
 import android.widget.TextView;
+import androidx.wear.complications.datasource.ComplicationDataSourceUpdateRequester;
 
 import com.google.android.gms.location.LocationRequest;
 import com.google.wear.whereami.complication.WhereAmIComplicationProviderService;
@@ -93,8 +92,9 @@ public class WhereAmIActivity extends FragmentActivity {
 
     private void forceComplicationUpdate() {
         if (checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            new ProviderUpdateRequester(this, new ComponentName(this, WhereAmIComplicationProviderService.class))
-                    .requestUpdateAll();
+            ComplicationDataSourceUpdateRequester request =
+                    new ComplicationDataSourceUpdateRequester(getApplicationContext(), ComponentName.createRelative(getApplicationContext(), ".complication.WhereAmIComplicationProviderService"));
+            request.requestUpdateAll();
         }
     }
 
@@ -110,7 +110,6 @@ public class WhereAmIActivity extends FragmentActivity {
     private CharSequence getTimeAgo(long time) {
         return DateUtils.getRelativeTimeSpanString(time);
     }
-
 
     private static LocationRequest createLocationRequest() {
         return LocationRequest.create()

@@ -14,6 +14,8 @@
 
 package com.google.wear.whereami.complication;
 
+import static android.location.LocationManager.GPS_PROVIDER;
+
 import android.Manifest;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -22,13 +24,17 @@ import android.content.pm.PackageManager;
 import android.graphics.drawable.Icon;
 import android.location.Address;
 import android.location.Location;
-import android.support.wearable.complications.ComplicationData;
-import android.support.wearable.complications.ComplicationManager;
-import android.support.wearable.complications.ComplicationProviderService;
-import android.support.wearable.complications.ComplicationText;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.wear.complications.data.*;
+
+import android.os.RemoteException;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
+import androidx.wear.complications.datasource.ComplicationDataSourceService;
+import androidx.wear.complications.datasource.ComplicationRequest;
 
 import com.google.android.gms.location.LocationRequest;
 import com.google.wear.whereami.R;
@@ -36,13 +42,14 @@ import com.google.wear.whereami.WhereAmIActivity;
 import com.patloew.rxlocation.FusedLocation;
 import com.patloew.rxlocation.RxLocation;
 
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
 
-public class WhereAmIComplicationProviderService extends ComplicationProviderService {
+public class WhereAmIComplicationProviderService extends ComplicationDataSourceService {
 
     private static final String TAG = "WhereAmIComplication";
 
@@ -63,9 +70,9 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
     }
 
     @Override
-    public void onComplicationUpdate(int complicationId, int dataType, ComplicationManager manager) {
+    public void onComplicationRequest(@NonNull ComplicationRequest complicationRequest, @NonNull ComplicationRequestListener complicationRequestListener) {
         if (Log.isLoggable(TAG, Log.DEBUG)) {
-            Log.d(TAG, "onComplicationUpdate() id: " + complicationId);
+            Log.d(TAG, "onComplicationUpdate(): " + complicationRequest);
         }
 
         final Observable<Pair<Location, Address>> task;
@@ -88,95 +95,111 @@ public class WhereAmIComplicationProviderService extends ComplicationProviderSer
             task
                 .subscribe(
                         // onNext
-                        (locationAddressPair -> updateComplication(complicationId, dataType, manager, locationAddressPair.first, locationAddressPair.second)),
+                        (locationAddressPair -> updateComplication(complicationRequest, complicationRequestListener, locationAddressPair.first, locationAddressPair.second)),
                         // onError
                         (error) -> {
-                            Log.e(TAG, "Error retreiving location", error);
-                            updateComplication(complicationId, dataType, manager, null, null);
+                            Log.w(TAG, "Error retrieving location", error);
+                            updateComplication(complicationRequest, complicationRequestListener, null, null);
                         }
                 )
         );
     }
 
-    private void updateComplication(int complicationId, int dataType, ComplicationManager manager, Location location, Address address) {
+    @Nullable
+    @Override
+    public ComplicationData getPreviewData(@NonNull ComplicationType complicationType) {
+        Location location = new Location(GPS_PROVIDER);
+        location.setLongitude(0.0);
+        location.setLatitude(0.0);
+
+        Address address = new Address(Locale.ENGLISH);
+        address.setCountryName("Null Island");
+
+        switch (complicationType) {
+            case SHORT_TEXT:
+                return new ShortTextComplicationData.Builder(getTimeAgo(location), getFullDescription(location, address))
+                                .setMonochromaticImage(new MonochromaticImage.Builder(Icon.createWithResource(this, R.drawable.ic_my_location)).build())
+                                .setTapAction(getTapAction())
+                                .build();
+            case LONG_TEXT:
+                return new LongTextComplicationData.Builder(getAddressDescriptionText(this, address), getFullDescription(location, address))
+                                .setTitle(getTimeAgo(location))
+                                .setMonochromaticImage(new MonochromaticImage.Builder(Icon.createWithResource(this, R.drawable.ic_my_location)).build())
+                                .setTapAction(getTapAction())
+                                .build();
+            default:
+                throw new IllegalArgumentException("Unexpected complication type " + complicationType);
+        }
+    }
+
+    private void updateComplication(ComplicationRequest complicationRequest, ComplicationRequestListener complicationRequestListener, Location location, Address address) throws RemoteException {
         if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, "Address: " + address);
         }
 
         ComplicationData complicationData = null;
-        switch (dataType) {
-            case ComplicationData.TYPE_SHORT_TEXT:
+        switch (complicationRequest.getComplicationType()) {
+            case SHORT_TEXT:
                 complicationData =
-                        new ComplicationData.Builder(ComplicationData.TYPE_SHORT_TEXT)
-                                .setShortText(getTimeAgo(location))
-                                .setContentDescription(getFullDescription(location, address))
-                                .setIcon(Icon.createWithResource(this, R.drawable.ic_my_location))
+                        new ShortTextComplicationData.Builder(getTimeAgo(location), getFullDescription(location, address))
+                                .setMonochromaticImage(new MonochromaticImage.Builder(Icon.createWithResource(this, R.drawable.ic_my_location)).build())
                                 .setTapAction(getTapAction())
                                 .build();
                 break;
-            case ComplicationData.TYPE_LONG_TEXT:
+            case LONG_TEXT:
                 complicationData =
-                        new ComplicationData.Builder(ComplicationData.TYPE_LONG_TEXT)
-                                .setLongTitle(getTimeAgo(location))
-                                .setLongText(getAddressDescriptionText(this, address))
-                                .setContentDescription(getFullDescription(location, address))
-                                .setIcon(Icon.createWithResource(this, R.drawable.ic_my_location))
+                        new LongTextComplicationData.Builder(getAddressDescriptionText(this, address), getFullDescription(location, address))
+                                .setTitle(getTimeAgo(location))
+                                .setMonochromaticImage(new MonochromaticImage.Builder(Icon.createWithResource(this, R.drawable.ic_my_location)).build())
                                 .setTapAction(getTapAction())
                                 .build();
                 break;
             default:
                 if (Log.isLoggable(TAG, Log.WARN)) {
-                    Log.w(TAG, "Unexpected complication type " + dataType);
+                    Log.w(TAG, "Unexpected complication type " + complicationRequest);
                 }
         }
 
-        if (complicationData != null) {
-            manager.updateComplicationData(complicationId, complicationData);
-        } else {
-            // If no data is sent, we still need to inform the ComplicationManager, so
-            // the update job can finish and the wake lock isn't held any longer.
-            manager.noUpdateRequired(complicationId);
-        }
+        // If no data is sent, we still need to inform the ComplicationManager, so
+        // the update job can finish and the wake lock isn't held any longer.
+        complicationRequestListener.onComplicationData(complicationData);
     }
 
     private PendingIntent getTapAction() {
         Intent intent = new Intent(this, WhereAmIActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private ComplicationText getFullDescription(Location location, Address address) {
-        if (location == null || address == null) return ComplicationText.plainText(getString(R.string.no_location));
+        if (location == null || address == null) return new PlainComplicationText.Builder(getString(R.string.no_location)).build();
 
         return getTimeAgo(location.getTime())
-                .setSurroundingText(getString(R.string.address_as_of_time_ago, getAddressDescription(this, address), "^1"))
                 .build();
     }
 
     public static ComplicationText getAddressDescriptionText(Context context, Address address) {
-        return ComplicationText.plainText(getAddressDescription(context, address));
+        return new PlainComplicationText.Builder(getAddressDescription(context, address)).build();
     }
 
     public static String getAddressDescription(Context context, Address address) {
         if (address == null) return context.getString(R.string.no_location);
         String subThoroughfare = address.getSubThoroughfare();
         String thoroughfare = address.getThoroughfare();
-        if (thoroughfare == null) return address.toString();
+        if (thoroughfare == null) return address.getCountryName();
         return (TextUtils.isEmpty(subThoroughfare) ? "" : subThoroughfare +  " ") + thoroughfare;
     }
 
 
     private ComplicationText getTimeAgo(Location location) {
-        if (location == null) return ComplicationText.plainText("--");
+        if (location == null) return new PlainComplicationText.Builder("--").build();
         return getTimeAgo(location.getTime()).build();
     }
 
-    private ComplicationText.TimeDifferenceBuilder getTimeAgo(long fromTime) {
-        return new ComplicationText.TimeDifferenceBuilder()
-                .setStyle(ComplicationText.DIFFERENCE_STYLE_SHORT_WORDS_SINGLE_UNIT)
-                .setMinimumUnit(TimeUnit.MINUTES)
-                .setReferencePeriodEnd(fromTime)
-                .setShowNowText(true);
+    private TimeDifferenceComplicationText.Builder getTimeAgo(long fromTime) {
+        return new TimeDifferenceComplicationText.Builder(TimeDifferenceStyle.SHORT_SINGLE_UNIT, new CountUpTimeReference(fromTime))
+                .setMinimumTimeUnit(TimeUnit.MINUTES)
+                .setDisplayAsNow(true);
     }
 
     public static LocationRequest createLocationRequest() {
