@@ -26,7 +26,7 @@ import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.ResolvedLocation
 import java.util.concurrent.TimeUnit
 
-fun getTimeAgo(time: Long): CharSequence {
+fun Context.getTimeAgo(time: Long): CharSequence {
     return DateUtils.getRelativeTimeSpanString(time)
 }
 
@@ -37,7 +37,7 @@ fun Context.getAddressDescriptionText(location: LocationResult): ComplicationTex
         PlainComplicationText.Builder(getString(R.string.no_location)).build()
 }
 
-fun getAddressDescription(location: ResolvedLocation): String {
+fun Context.getAddressDescription(location: ResolvedLocation): String {
     val address = location.address
     val subThoroughfare = address.subThoroughfare
     val thoroughfare = address.thoroughfare ?: return address.countryName
@@ -51,14 +51,21 @@ fun Context.getFullDescription(location: LocationResult): ComplicationText {
         PlainComplicationText.Builder(getString(R.string.no_location)).build()
 }
 
-fun getTimeAgoComplicationText(location: LocationResult): ComplicationText {
+fun Context.getTimeAgoComplicationText(location: LocationResult): ComplicationText {
     return if (location is ResolvedLocation)
         getTimeAgoComplicationText(location.location.time).build()
     else
         PlainComplicationText.Builder("--").build()
 }
 
-fun getTimeAgoComplicationText(fromTime: Long): TimeDifferenceComplicationText.Builder {
+fun Context.describeLocation(location: LocationResult): String {
+    return when (location) {
+        is ResolvedLocation -> getAddressDescription(location)
+        else -> "Unknown"
+    }
+}
+
+fun Context.getTimeAgoComplicationText(fromTime: Long): TimeDifferenceComplicationText.Builder {
     return TimeDifferenceComplicationText.Builder(
         TimeDifferenceStyle.SHORT_SINGLE_UNIT,
         CountUpTimeReference(fromTime)

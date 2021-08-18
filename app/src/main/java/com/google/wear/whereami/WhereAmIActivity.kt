@@ -19,6 +19,7 @@ import android.os.Bundle
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.wear.whereami.complication.forceComplicationUpdate
 import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.data.ResolvedLocation
 import com.google.wear.whereami.format.getAddressDescription
@@ -58,7 +59,7 @@ class WhereAmIActivity : FragmentActivity() {
     }
 
     override fun onStop() {
-        locationViewModel.forceComplicationUpdate()
+        forceComplicationUpdate()
         super.onStop()
     }
 

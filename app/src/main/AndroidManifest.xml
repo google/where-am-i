@@ -58,13 +58,28 @@
 
         <activity
             android:name=".WhereAmIActivity"
-            android:label="@string/title_activity_where_am_i">
+            android:label="@string/title_activity_where_am_i"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".tile.WhereAmITileProviderService"
+            android:label="@string/title_activity_where_am_i"
+            android:icon="@drawable/ic_my_location"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@drawable/ic_my_location" />
+        </service>
     </application>
 
 </manifest>

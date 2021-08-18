@@ -25,38 +25,25 @@ import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.data.ResolvedLocation
 import com.google.wear.whereami.format.toComplicationData
+import com.google.wear.whereami.kt.CoroutinesComplicationDataSourceService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.*
 
-class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
+class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceService() {
     private lateinit var locationViewModel: LocationViewModel
-
-    private val serviceJob = Job()
-    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
     override fun onCreate() {
         super.onCreate()
         locationViewModel = LocationViewModel(applicationContext)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        serviceJob.cancel()
-    }
+    override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest) =
+        toComplicationData(complicationRequest.complicationType, locationViewModel.readLocationResult())
 
-    override fun onComplicationRequest(
-        request: ComplicationRequest,
-        listener: ComplicationRequestListener
-    ) {
-        serviceScope.launch {
-            updateComplication(request, listener, locationViewModel.readLocationResult())
-        }
-    }
-
-    override fun getPreviewData(type: ComplicationType): ComplicationData? {
+    override fun getPreviewData(type: ComplicationType): ComplicationData {
         val location = Location(LocationManager.GPS_PROVIDER)
         location.longitude = 0.0
         location.latitude = 0.0
@@ -66,19 +53,5 @@ class WhereAmIComplicationProviderService : ComplicationDataSourceService() {
         val locationResult = ResolvedLocation(location, address)
 
         return toComplicationData(type, locationResult)
-    }
-
-    @Throws(RemoteException::class)
-    private fun updateComplication(
-        complicationRequest: ComplicationRequest,
-        complicationRequestListener: ComplicationRequestListener,
-        location: LocationResult
-    ) {
-        val complicationData = toComplicationData(complicationRequest.complicationType, location)
-        complicationRequestListener.onComplicationData(complicationData)
-    }
-
-    companion object {
-        private const val TAG = "WhereAmIComplication"
     }
 }

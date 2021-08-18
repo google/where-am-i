@@ -21,6 +21,8 @@ import androidx.wear.complications.datasource.ComplicationDataSourceUpdateReques
 import com.google.android.gms.location.LocationRequest
 import com.patloew.colocation.CoGeocoder
 import com.patloew.colocation.CoLocation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class LocationViewModel(val applicationContext: Context) {
     private val coGeocoder = CoGeocoder.from(applicationContext)
@@ -31,23 +33,21 @@ class LocationViewModel(val applicationContext: Context) {
             return PermissionError
         }
 
-        val location =
-            coLocation.getCurrentLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
-                ?: return NoLocation
+        return withContext(Dispatchers.IO) {
+            val location =
+                coLocation.getCurrentLocation(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
 
-        val address = coGeocoder.getAddressFromLocation(location) ?: return Unknown
+            if (location == null) {
+                NoLocation
+            } else {
+                val address = coGeocoder.getAddressFromLocation(location)
 
-        return ResolvedLocation(location, address)
-    }
-
-    fun forceComplicationUpdate() {
-        if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            val request = ComplicationDataSourceUpdateRequester(
-                applicationContext, ComponentName.createRelative(
-                    applicationContext, ".complication.WhereAmIComplicationProviderService"
-                )
-            )
-            request.requestUpdateAll()
+                if (address == null) {
+                    Unknown
+                } else {
+                    ResolvedLocation(location, address)
+                }
+            }
         }
     }
 }
