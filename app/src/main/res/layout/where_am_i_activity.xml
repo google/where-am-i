@@ -21,7 +21,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal|center_vertical"
             android:accessibilityLiveRegion="polite"
-            android:text="@string/hello_world" />
+            android:text="@string/hello_world"
+            android:textColor="@android:color/transparent"/>
 
     </FrameLayout>
 </androidx.wear.widget.BoxInsetLayout>

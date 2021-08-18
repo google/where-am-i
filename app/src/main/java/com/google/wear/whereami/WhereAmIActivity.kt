@@ -46,15 +46,18 @@ class WhereAmIActivity : FragmentActivity() {
 
             val location = locationViewModel.readLocationResult()
 
-            if (location is ResolvedLocation) {
-                textView.text = getString(
+            val text: String = if (location is ResolvedLocation) {
+                getString(
                     R.string.address_as_of_time_activity,
                     getAddressDescription(location),
                     getTimeAgo(location.location.time)
                 )
             } else {
-                textView.setText(R.string.location_error)
+                getString(R.string.location_error)
             }
+
+            textView.text = text
+            textView.contentDescription = text
         }
     }
 
