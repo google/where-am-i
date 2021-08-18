@@ -35,14 +35,12 @@ class TilePreviewActivity : ComponentActivity() {
         setContentView(R.layout.activity_tile)
         val rootLayout = findViewById<FrameLayout>(R.id.tile_container)
 
-        println("Connecting")
         tileClient = TileUiClient(
             context = this,
             component = ComponentName(this, WhereAmITileProviderService::class.java),
             parentView = rootLayout
         )
         tileClient.connect()
-        println("Connected")
     }
 
     override fun onDestroy() {
