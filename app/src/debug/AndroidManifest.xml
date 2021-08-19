@@ -5,7 +5,7 @@
     <application>
         <activity
             android:name=".tile.TilePreviewActivity"
-            android:label="Tile Preview"
+            android:label="@string/tile_preview"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

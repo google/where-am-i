@@ -18,7 +18,7 @@ import androidx.wear.tiles.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
 import androidx.wear.tiles.TileBuilders.Tile
 import com.google.wear.whereami.WhereAmIActivity
 import com.google.wear.whereami.data.LocationViewModel
-import com.google.wear.whereami.format.describeLocation
+import com.google.wear.whereami.describeLocation
 import com.google.wear.whereami.kt.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 
 abstract class CoroutinesComplicationDataSourceService : ComplicationDataSourceService() {
     private val serviceJob = Job()
-    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+    private val serviceScope = CoroutineScope(Dispatchers.Default + serviceJob)
 
     override fun onDestroy() {
         super.onDestroy()

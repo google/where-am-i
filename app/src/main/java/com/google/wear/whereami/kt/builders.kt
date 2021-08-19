@@ -13,11 +13,7 @@
 // limitations under the License.
 package com.google.wear.whereami.kt
 
-import androidx.wear.complications.data.ComplicationText
-import androidx.wear.complications.data.PlainComplicationText
 import androidx.wear.tiles.*
-
-// tiles
 
 fun text(fn: LayoutElementBuilders.Text.Builder.() -> Unit): LayoutElementBuilders.Text {
     val builder = LayoutElementBuilders.Text.builder()
@@ -80,7 +76,6 @@ fun TimelineBuilders.Timeline.Builder.timelineEntry(fn: TimelineBuilders.Timelin
     addTimelineEntry(builder.build())
 }
 
-
 fun Float.toSpProp() = DimensionBuilders.SpProp.builder().setValue(this).build()
 
 fun Float.toDpProp() = DimensionBuilders.DpProp.builder().setValue(this).build()
@@ -88,13 +83,7 @@ fun Float.toDpProp() = DimensionBuilders.DpProp.builder().setValue(this).build()
 fun Int.toColorProp(): ColorBuilders.ColorProp =
     ColorBuilders.ColorProp.builder().setArgb(this).build()
 
-
 fun String.toContentDescription() =
     ModifiersBuilders.Semantics.builder().setContentDescription(
         this
     ).build()
-
-// Complications
-
-fun plainText(text: String): ComplicationText =
-    PlainComplicationText.Builder(text).build()

@@ -15,15 +15,16 @@ package com.google.wear.whereami
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import com.google.wear.whereami.complication.forceComplicationUpdate
+import com.google.wear.whereami.complication.WhereAmIComplicationProviderService.Companion.forceComplicationUpdate
 import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.data.ResolvedLocation
-import com.google.wear.whereami.format.getAddressDescription
-import com.google.wear.whereami.format.getTimeAgo
 import com.tbruyelle.rxpermissions2.RxPermissions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.awaitSingle
@@ -56,6 +57,8 @@ class WhereAmIActivity : FragmentActivity() {
                 textView.setText(R.string.location_error)
             }
         }
+
+        forceComplicationUpdate()
     }
 
     override fun onStop() {
@@ -69,5 +72,18 @@ class WhereAmIActivity : FragmentActivity() {
             .doOnNext { isGranted ->
                 if (!isGranted) throw SecurityException("No location permission")
             }.awaitSingle()
+    }
+
+    companion object {
+        fun Context.tapAction(): PendingIntent? {
+            val intent = Intent(this, WhereAmIActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            return PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
     }
 }

@@ -13,31 +13,58 @@
 // limitations under the License.
 package com.google.wear.whereami.kt
 
+import android.content.Intent
+import android.os.IBinder
+import androidx.annotation.CallSuper
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ServiceLifecycleDispatcher
+import androidx.lifecycle.lifecycleScope
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.ResourceBuilders.Resources
 import androidx.wear.tiles.TileBuilders.Tile
 import androidx.wear.tiles.TileProviderService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.guava.asListenableFuture
 
 const val STABLE_RESOURCES_VERSION = "1"
 
-abstract class CoroutinesTileProviderService : TileProviderService() {
-    private val serviceJob = Job()
-    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+abstract class CoroutinesTileProviderService : TileProviderService(), LifecycleOwner {
+    private val mDispatcher = ServiceLifecycleDispatcher(this)
 
+    @CallSuper
+    override fun onCreate() {
+        mDispatcher.onServicePreSuperOnCreate()
+        super.onCreate()
+    }
+
+    @CallSuper
+    override fun onBind(intent: Intent): IBinder? {
+        mDispatcher.onServicePreSuperOnBind()
+        return null
+    }
+
+    @Suppress("DEPRECATION")
+    @CallSuper
+    override fun onStart(intent: Intent?, startId: Int) {
+        mDispatcher.onServicePreSuperOnStart()
+        super.onStart(intent, startId)
+    }
+
+    @CallSuper
     override fun onDestroy() {
+        mDispatcher.onServicePreSuperOnDestroy()
         super.onDestroy()
-        serviceJob.cancel()
+    }
+
+    override fun getLifecycle(): Lifecycle {
+        return mDispatcher.lifecycle
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<Tile> {
-        return serviceScope.async {
+        return lifecycleScope.async {
             suspendTileRequest(requestParams)
         }.asListenableFuture()
     }
