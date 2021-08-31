@@ -13,28 +13,53 @@
 // limitations under the License.
 package com.google.wear.whereami.tile
 
-import androidx.wear.tiles.*
+import android.content.Context
 import androidx.wear.tiles.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
+import androidx.wear.tiles.RequestBuilders
+import androidx.wear.tiles.ResourceBuilders
 import androidx.wear.tiles.TileBuilders.Tile
+import androidx.wear.tiles.TileProviderService
+import com.dropbox.android.external.store4.get
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.wear.whereami.WhereAmIActivity
+import com.google.wear.whereami.WhereAmIApplication
 import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.describeLocation
+import com.google.wear.whereami.getTimeAgo
 import com.google.wear.whereami.kt.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.guava.asListenableFuture
 import kotlinx.coroutines.withContext
 
-class WhereAmITileProviderService : CoroutinesTileProviderService() {
+const val STABLE_RESOURCES_VERSION = "1"
+
+class WhereAmITileProviderService : TileProviderService() {
+    private lateinit var applicationScope: CoroutineScope
     private lateinit var locationViewModel: LocationViewModel
 
     override fun onCreate() {
         super.onCreate()
 
-        locationViewModel = LocationViewModel(applicationContext)
+        locationViewModel = (this.applicationContext as WhereAmIApplication).locationViewModel
+        applicationScope = (this.applicationContext as WhereAmIApplication).applicationScope
     }
 
-    override suspend fun suspendTileRequest(requestParams: RequestBuilders.TileRequest): Tile {
+    override fun onResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
+        return Futures.immediateFuture(ResourceBuilders.Resources.builder().setVersion(STABLE_RESOURCES_VERSION).build())
+    }
+
+    override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<Tile> {
+        return applicationScope.async {
+            suspendTileRequest(requestParams)
+        }.asListenableFuture()
+    }
+
+    private suspend fun suspendTileRequest(requestParams: RequestBuilders.TileRequest): Tile {
         return withContext(Dispatchers.IO) {
-            val location = locationViewModel.readLocationResult()
+            val location = locationViewModel.store.get(LocationViewModel.Current)
 
             tile {
                 setResourcesVersion(STABLE_RESOURCES_VERSION)
@@ -65,11 +90,26 @@ class WhereAmITileProviderService : CoroutinesTileProviderService() {
                                         setText(describeLocation(location))
                                     }
                                 )
+                                addContent(
+                                    text {
+                                        setMaxLines(1)
+                                        setFontStyle(fontStyle {
+                                            setSize(12f.toSpProp())
+                                        })
+                                        setText(getTimeAgo(location.time).toString())
+                                    }
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    companion object {
+        fun Context.forceTileUpdate() {
+            getUpdater(applicationContext).requestUpdate(WhereAmITileProviderService::class.java)
         }
     }
 }

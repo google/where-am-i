@@ -18,9 +18,10 @@ import android.text.TextUtils
 import android.text.format.DateUtils
 import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.ResolvedLocation
+import java.time.Instant
 
-fun Context.getTimeAgo(time: Long): CharSequence {
-    return DateUtils.getRelativeTimeSpanString(time)
+fun Context.getTimeAgo(time: Instant): CharSequence {
+    return DateUtils.getRelativeTimeSpanString(time.toEpochMilli())
 }
 
 fun Context.getAddressDescription(location: ResolvedLocation): String {

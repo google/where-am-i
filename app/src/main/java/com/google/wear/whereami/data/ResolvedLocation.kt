@@ -15,9 +15,9 @@ package com.google.wear.whereami.data
 
 import android.location.Address
 import android.location.Location
+import java.time.Instant
 
-sealed class LocationResult {
-    companion object
+sealed class LocationResult(open val time: Instant = Instant.now()) {
 }
 
 object Unknown: LocationResult()
@@ -28,4 +28,7 @@ object NoLocation: LocationResult()
 
 data class LocationError(val e: Exception): LocationResult()
 
-data class ResolvedLocation(val location: Location, val address: Address): LocationResult()
+data class ResolvedLocation(val location: Location, val address: Address): LocationResult() {
+    override val time: Instant
+        get() = Instant.ofEpochMilli(location.time)
+}

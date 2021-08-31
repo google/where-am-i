@@ -22,12 +22,19 @@ import android.os.Bundle
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import com.google.wear.whereami.complication.WhereAmIComplicationProviderService.Companion.forceComplicationUpdate
+import com.dropbox.android.external.store4.StoreRequest
+import com.dropbox.android.external.store4.fresh
+import com.google.wear.whereami.data.LocationError
+import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
+import com.google.wear.whereami.data.LocationViewModel.Companion.Current
 import com.google.wear.whereami.data.ResolvedLocation
 import com.tbruyelle.rxpermissions2.RxPermissions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.awaitSingle
+import kotlinx.coroutines.withContext
 
 class WhereAmIActivity : FragmentActivity() {
     private lateinit var locationViewModel: LocationViewModel
@@ -40,30 +47,48 @@ class WhereAmIActivity : FragmentActivity() {
         setContentView(R.layout.where_am_i_activity)
         textView = findViewById(R.id.text)
 
-        locationViewModel = LocationViewModel(applicationContext)
+        locationViewModel = (this.applicationContext as WhereAmIApplication).locationViewModel
 
-        lifecycleScope.launch {
+        lifecycleScope.launchWhenCreated {
             checkPermissions()
 
-            val location = locationViewModel.readLocationResult()
+            val flow = locationViewModel.store.stream(StoreRequest.cached(Current, refresh = false))
 
-            if (location is ResolvedLocation) {
-                textView.text = getString(
-                    R.string.address_as_of_time_activity,
-                    getAddressDescription(location),
-                    getTimeAgo(location.location.time)
-                )
+            flow.collect {
+                val data = it.dataOrNull()
+
+                if (data != null) {
+                    withContext(Dispatchers.Main) {
+                        updateAndDisplayLocation(data)
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        lifecycleScope.launch {
+            locationViewModel.store.fresh(Current)
+        }
+    }
+
+    private fun updateAndDisplayLocation(location: LocationResult) {
+        if (location is ResolvedLocation) {
+            textView.text = getString(
+                R.string.address_as_of_time_activity,
+                getAddressDescription(location),
+                getTimeAgo(location.time)
+            )
+        } else {
+            val error = (location as? LocationError)?.e?.message
+            if (error != null) {
+                textView.setText(error)
             } else {
                 textView.setText(R.string.location_error)
             }
         }
-
-        forceComplicationUpdate()
-    }
-
-    override fun onStop() {
-        forceComplicationUpdate()
-        super.onStop()
     }
 
     suspend fun checkPermissions() {
