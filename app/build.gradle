@@ -40,6 +40,7 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.5.1"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:1.5.1"
     implementation "androidx.wear.tiles:tiles:1.0.0-alpha10"
+    implementation "androidx.constraintlayout:constraintlayout:2.1.0"
 
     // RxLocation
     implementation 'com.google.android.gms:play-services-location:18.0.0'
@@ -47,8 +48,6 @@ dependencies {
     implementation 'com.github.tbruyelle:rxpermissions:0.10.2'
     api 'io.reactivex.rxjava2:rxandroid:2.1.1'
     api 'io.reactivex.rxjava2:rxjava:2.2.12'
-
-    implementation "com.dropbox.mobile.store:store4:4.0.2-KT15"
 
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.3.1"
     implementation "androidx.lifecycle:lifecycle-process:2.3.1"
@@ -63,6 +62,13 @@ dependencies {
     // Material design icons
     implementation "androidx.compose.material:material-icons-core:1.1.0-alpha02"
     implementation "androidx.compose.material:material-icons-extended:1.1.0-alpha02"
+
+    implementation "androidx.work:work-runtime-ktx:2.5.0"
+
+    // Room for database
+    implementation "androidx.room:room-ktx:2.3.0"
+    implementation "androidx.room:room-runtime:2.3.0"
+    kapt "androidx.room:room-compiler:2.3.0"
 
     debugImplementation "androidx.wear.tiles:tiles-renderer:1.0.0-alpha10"
 }

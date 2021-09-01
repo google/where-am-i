@@ -19,18 +19,17 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.ResourceBuilders
 import androidx.wear.tiles.TileBuilders.Tile
 import androidx.wear.tiles.TileProviderService
-import com.dropbox.android.external.store4.get
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.wear.whereami.WhereAmIActivity
 import com.google.wear.whereami.WhereAmIApplication
 import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.describeLocation
-import com.google.wear.whereami.getTimeAgo
 import com.google.wear.whereami.kt.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.asListenableFuture
 import kotlinx.coroutines.withContext
 
@@ -59,7 +58,7 @@ class WhereAmITileProviderService : TileProviderService() {
 
     private suspend fun suspendTileRequest(requestParams: RequestBuilders.TileRequest): Tile {
         return withContext(Dispatchers.IO) {
-            val location = locationViewModel.store.get(LocationViewModel.Current)
+            val location = locationViewModel.locationStream().first()
 
             tile {
                 setResourcesVersion(STABLE_RESOURCES_VERSION)
@@ -96,7 +95,7 @@ class WhereAmITileProviderService : TileProviderService() {
                                         setFontStyle(fontStyle {
                                             setSize(12f.toSpProp())
                                         })
-                                        setText(getTimeAgo(location.time).toString())
+                                        setText(location.formattedTime)
                                     }
                                 )
                             }

@@ -16,72 +16,94 @@ package com.google.wear.whereami.data
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import com.dropbox.android.external.store4.Fetcher
-import com.dropbox.android.external.store4.MemoryPolicy
-import com.dropbox.android.external.store4.Store
-import com.dropbox.android.external.store4.StoreBuilder
+import android.util.Log
 import com.google.android.gms.location.LocationRequest
+import com.google.wear.whereami.getAddressDescription
 import com.patloew.colocation.CoGeocoder
 import com.patloew.colocation.CoLocation
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import kotlin.time.Duration
+import java.time.Instant
 
-class LocationViewModel(private val applicationContext: Context, private val coroutineScope: CoroutineScope) {
+class LocationViewModel(
+    private val applicationContext: Context
+) {
     private val coGeocoder = CoGeocoder.from(applicationContext)
     private val coLocation = CoLocation.from(applicationContext)
+    private val locationDao = AppDatabase.getDatabase(applicationContext).locationDao()
 
-    @OptIn(FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class,
-        kotlin.time.ExperimentalTime::class
-    )
-    val store: Store<String, LocationResult> = StoreBuilder
-        .from<String, LocationResult>(Fetcher.of { readLocationResult() })
-        .cachePolicy(MemoryPolicy.builder<String, LocationResult>()
-            .setMaxSize(10)
-            .setExpireAfterWrite(Duration.Companion.minutes(1))
-            .build())
-        .build()
-
-    private suspend fun readLocationResult(): LocationResult {
-        if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return PermissionError
+    suspend fun readFreshLocationResult(): LocationResult {
+        val permissionCheck = withContext(Dispatchers.Main) {
+            if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                LocationResult.PermissionError
+            } else {
+                null
+            }
         }
 
-        return withContext(Dispatchers.IO) {
+        if (permissionCheck != null) {
+            return permissionCheck
+        }
+
+        val location = withContext(Dispatchers.IO) {
             var start = System.currentTimeMillis()
 
             val location = try {
                 coLocation.getCurrentLocation(LocationRequest.PRIORITY_HIGH_ACCURACY)
             } finally {
-               println("getCurrentLocation took " + (System.currentTimeMillis() - start))
+                Log.i(
+                    "WhereAmI",
+                    "getAddressFromLocation took " + (System.currentTimeMillis() - start)
+                )
             }
 
             if (location == null) {
-                NoLocation
+                LocationResult.Unknown
             } else {
                 start = System.currentTimeMillis()
 
                 val address = try {
                     coGeocoder.getAddressFromLocation(location)
                 } catch (ioe: IOException) {
-                    return@withContext LocationError(ioe)
+                    return@withContext LocationResult(
+                        error = LocationResult.ErrorType.Failed,
+                        errorMessage = ioe.message
+                    )
                 } finally {
-                    println("getAddressFromLocation took " + (System.currentTimeMillis() - start))
+                    Log.i(
+                        "WhereAmI",
+                        "getAddressFromLocation took " + (System.currentTimeMillis() - start)
+                    )
                 }
 
                 if (address == null) {
-                    Unknown
+                    LocationResult.Unknown
                 } else {
-                    ResolvedLocation(location, address)
+                    LocationResult(
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        locationName = applicationContext.getAddressDescription(address),
+                        time = Instant.ofEpochMilli(location.time)
+                    )
                 }
             }
         }
+
+        withContext(Dispatchers.IO) {
+            locationDao.upsertLocation(location)
+        }
+
+        return location
     }
 
-    companion object {
-        val Current = "current"
+    fun locationStream(): Flow<LocationResult> {
+        return locationDao.getLocation().filterNotNull()
+    }
+
+    fun setInitialLocation() {
+        locationDao.insertLocation(LocationResult.Unknown)
     }
 }

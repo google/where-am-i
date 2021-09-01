@@ -18,25 +18,18 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
-import android.location.Address
-import android.location.Location
-import android.location.LocationManager
 import androidx.wear.complications.data.*
 import androidx.wear.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.complications.datasource.ComplicationRequest
-import com.dropbox.android.external.store4.get
 import com.google.wear.whereami.R
 import com.google.wear.whereami.WhereAmIActivity.Companion.tapAction
 import com.google.wear.whereami.WhereAmIApplication
 import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
-import com.google.wear.whereami.data.LocationViewModel.Companion.Current
-import com.google.wear.whereami.data.ResolvedLocation
-import com.google.wear.whereami.getAddressDescription
 import com.google.wear.whereami.kt.CoroutinesComplicationDataSourceService
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import java.time.Instant
-import java.util.*
 import java.util.concurrent.TimeUnit
 
 class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceService() {
@@ -49,18 +42,13 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
         applicationScope = (this.applicationContext as WhereAmIApplication).applicationScope
     }
 
-    override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest) =
-        toComplicationData(complicationRequest.complicationType, locationViewModel.store.get(Current))
+    override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest): ComplicationData {
+        val current = locationViewModel.locationStream().first()
+        return toComplicationData(complicationRequest.complicationType, current)
+    }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {
-        val location = Location(LocationManager.GPS_PROVIDER)
-        location.longitude = 0.0
-        location.latitude = 0.0
-        val address = Address(Locale.ENGLISH)
-        address.countryName = "Null Island"
-
-        val locationResult = ResolvedLocation(location, address)
-
+        val locationResult = LocationResult(latitude = 0.0, longitude = 0.0, locationName = "Null Island")
         return toComplicationData(type, locationResult)
     }
 
@@ -69,8 +57,19 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
         locationResult: LocationResult
     ): ComplicationData {
         return when (type) {
+            ComplicationType.SMALL_IMAGE -> SmallImageComplicationData.Builder(
+                SmallImage.Builder(
+                    Icon.createWithResource(
+                        this,
+                        R.drawable.ic_my_location
+                    ), SmallImageType.ICON
+                ).build(),
+                getAddressDescriptionText(locationResult)
+            )
+                .setTapAction(tapAction())
+                .build()
             ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
-                getTimeAgoComplicationText(locationResult),
+                getTimeAgoComplicationText(locationResult.time).build(),
                 getAddressDescriptionText(locationResult)
             )
                 .setMonochromaticImage(
@@ -87,7 +86,7 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
                 getAddressDescriptionText(locationResult),
                 getAddressDescriptionText(locationResult)
             )
-                .setTitle(getTimeAgoComplicationText(locationResult))
+                .setTitle(getTimeAgoComplicationText(locationResult.time).build())
                 .setMonochromaticImage(
                     MonochromaticImage.Builder(
                         Icon.createWithResource(
@@ -112,17 +111,9 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
         }
     }
 
-    fun getTimeAgoComplicationText(location: LocationResult): ComplicationText {
-        return if (location is ResolvedLocation) {
-            getTimeAgoComplicationText(location.time).build()
-        } else {
-            PlainComplicationText.Builder("--").build()
-        }
-    }
-
     fun getAddressDescriptionText(location: LocationResult): ComplicationText {
-        return if (location is ResolvedLocation) {
-            return PlainComplicationText.Builder(getAddressDescription(location)).build()
+        return if (location.locationName != null) {
+            return PlainComplicationText.Builder(location.locationName).build()
         } else {
             PlainComplicationText.Builder(getString(R.string.no_location)).build()
         }

@@ -22,13 +22,8 @@ import android.os.Bundle
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import com.dropbox.android.external.store4.StoreRequest
-import com.dropbox.android.external.store4.fresh
-import com.google.wear.whereami.data.LocationError
 import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
-import com.google.wear.whereami.data.LocationViewModel.Companion.Current
-import com.google.wear.whereami.data.ResolvedLocation
 import com.tbruyelle.rxpermissions2.RxPermissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
@@ -39,28 +34,26 @@ import kotlinx.coroutines.withContext
 class WhereAmIActivity : FragmentActivity() {
     private lateinit var locationViewModel: LocationViewModel
 
-    private lateinit var textView: TextView
+    private lateinit var locationTextView: TextView
+    private lateinit var timeTextView: TextView
 
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.where_am_i_activity)
-        textView = findViewById(R.id.text)
+        locationTextView = findViewById(R.id.location)
+        timeTextView = findViewById(R.id.time)
 
         locationViewModel = (this.applicationContext as WhereAmIApplication).locationViewModel
 
         lifecycleScope.launchWhenCreated {
             checkPermissions()
 
-            val flow = locationViewModel.store.stream(StoreRequest.cached(Current, refresh = false))
+            val flow = locationViewModel.locationStream()
 
             flow.collect {
-                val data = it.dataOrNull()
-
-                if (data != null) {
-                    withContext(Dispatchers.Main) {
-                        updateAndDisplayLocation(data)
-                    }
+                withContext(Dispatchers.Main) {
+                    updateAndDisplayLocation(it)
                 }
             }
         }
@@ -70,23 +63,21 @@ class WhereAmIActivity : FragmentActivity() {
         super.onResume()
 
         lifecycleScope.launch {
-            locationViewModel.store.fresh(Current)
+            locationViewModel.readFreshLocationResult()
         }
     }
 
     private fun updateAndDisplayLocation(location: LocationResult) {
-        if (location is ResolvedLocation) {
-            textView.text = getString(
-                R.string.address_as_of_time_activity,
-                getAddressDescription(location),
-                getTimeAgo(location.time)
-            )
+        if (location.locationName != null) {
+            locationTextView.text = location.locationName
+            timeTextView.text = location.formattedTime
         } else {
-            val error = (location as? LocationError)?.e?.message
+            val error = location.errorMessage
+            timeTextView.text = ""
             if (error != null) {
-                textView.setText(error)
+                locationTextView.text = error
             } else {
-                textView.setText(R.string.location_error)
+                locationTextView.setText(R.string.location_error)
             }
         }
     }

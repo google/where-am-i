@@ -1,13 +1,7 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name">Where am I</string>
-    <string name="intro_text">Swipe edge to exit the map.</string>
-
-    <string name="address_as_of_time_ago"><xliff:g example="3rd Street and Howard Avenue" id="address">%1$s</xliff:g> <xliff:g example="2 minutes" id="time">%2$s</xliff:g> ago</string>
-    <string name="address_as_of_time_activity">You were at <xliff:g example="3rd Street and Howard Avenue" id="address">%1$s</xliff:g> <xliff:g example="2 minutes ago" id="time">%2$s</xliff:g></string>
     <string name="no_location">Tap to get location</string>
-
     <string name="title_activity_where_am_i">Where Am I</string>
-
-    <string name="hello_world">Loading location…</string>
+    <string name="loading_location">Loading location…</string>
     <string name="location_error">Error retrieving location</string>
 </resources>

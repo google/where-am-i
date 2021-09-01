@@ -14,26 +14,25 @@
 package com.google.wear.whereami
 
 import android.content.Context
+import android.location.Address
 import android.text.TextUtils
 import android.text.format.DateUtils
 import com.google.wear.whereami.data.LocationResult
-import com.google.wear.whereami.data.ResolvedLocation
 import java.time.Instant
 
 fun Context.getTimeAgo(time: Instant): CharSequence {
     return DateUtils.getRelativeTimeSpanString(time.toEpochMilli())
 }
 
-fun Context.getAddressDescription(location: ResolvedLocation): String {
-    val address = location.address
+fun Context.getAddressDescription(address: Address): String {
     val subThoroughfare = address.subThoroughfare
     val thoroughfare = address.thoroughfare ?: return address.countryName
     return (if (TextUtils.isEmpty(subThoroughfare)) "" else "$subThoroughfare ") + thoroughfare
 }
 
 fun Context.describeLocation(location: LocationResult): String {
-    return when (location) {
-        is ResolvedLocation -> getAddressDescription(location)
-        else -> "Unknown"
+    return when  {
+        location.locationName != null -> location.locationName
+        else -> location.error.toString() + " " + location.errorMessage
     }
 }
