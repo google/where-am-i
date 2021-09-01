@@ -104,7 +104,7 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
     fun getTimeAgoComplicationText(fromTime: Instant): TimeDifferenceComplicationText.Builder {
         return TimeDifferenceComplicationText.Builder(
             TimeDifferenceStyle.SHORT_SINGLE_UNIT,
-            CountUpTimeReference(fromTime.toEpochMilli())
+            CountUpTimeReference(fromTime)
         ).apply {
             setMinimumTimeUnit(TimeUnit.MINUTES)
             setDisplayAsNow(true)

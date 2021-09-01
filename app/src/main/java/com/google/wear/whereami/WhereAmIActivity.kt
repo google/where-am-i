@@ -18,20 +18,32 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.TextView
-import androidx.fragment.app.FragmentActivity
+import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
 import com.tbruyelle.rxpermissions2.RxPermissions
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.awaitSingle
-import kotlinx.coroutines.withContext
 
-class WhereAmIActivity : FragmentActivity() {
+class WhereAmIActivity : AppCompatActivity() {
     private lateinit var locationViewModel: LocationViewModel
 
     private lateinit var locationTextView: TextView
@@ -40,9 +52,6 @@ class WhereAmIActivity : FragmentActivity() {
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.where_am_i_activity)
-        locationTextView = findViewById(R.id.location)
-        timeTextView = findViewById(R.id.time)
 
         locationViewModel = (this.applicationContext as WhereAmIApplication).locationViewModel
 
@@ -51,12 +60,50 @@ class WhereAmIActivity : FragmentActivity() {
 
             val flow = locationViewModel.locationStream()
 
-            flow.collect {
-                withContext(Dispatchers.Main) {
-                    updateAndDisplayLocation(it)
+            setContent {
+                LocationComponent(flow)
+            }
+        }
+    }
+
+    @Composable
+    fun LocationComponent(flow: Flow<LocationResult>) {
+        val flowState = flow.collectAsState(LocationResult.Unknown)
+
+        LocationComponent(flowState.value)
+    }
+
+    @Composable
+    fun LocationComponent(location: LocationResult) {
+        MaterialTheme {
+            Column(modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(text = location.description)
+                Text(text = location.formattedTime)
+
+                val coroutineScope = rememberCoroutineScope()
+
+                val refreshOnClick: () -> Unit = {
+                    coroutineScope.launch {
+                        locationViewModel.readFreshLocationResult()
+                    }
+                }
+
+                Button(onClick = { println("Click") }) {
+                    Text(text = "Refresh")
                 }
             }
         }
+    }
+
+    @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO or Configuration.UI_MODE_TYPE_WATCH,
+        device = "id:wear_round", widthDp = 240, heightDp = 240
+    )
+    @Composable
+    fun ComposablePreview() {
+        LocationComponent(LocationResult(locationName = "1600 Amphitheatre Parkway"))
     }
 
     override fun onResume() {

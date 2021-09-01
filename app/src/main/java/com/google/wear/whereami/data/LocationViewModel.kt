@@ -68,6 +68,7 @@ class LocationViewModel(
                 val address = try {
                     coGeocoder.getAddressFromLocation(location)
                 } catch (ioe: IOException) {
+                    Log.w("WhereAmI", "getAddressFromLocation failed", ioe)
                     return@withContext LocationResult(
                         error = LocationResult.ErrorType.Failed,
                         errorMessage = ioe.message

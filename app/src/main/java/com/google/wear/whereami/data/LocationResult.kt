@@ -19,6 +19,11 @@ data class LocationResult(
     @ColumnInfo(name = "errorMessage") val errorMessage: String? = null,
     @ColumnInfo(name = "time") val time: Instant = Instant.now(),
 ) {
+    val description: String
+        get() {
+            return locationName ?: errorMessage ?: error.toString()
+        }
+
     val formattedTime: String
         get() {
             return timeFormatter.format(LocalDateTime.ofInstant(time, ZoneOffset.systemDefault()))

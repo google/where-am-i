@@ -61,6 +61,7 @@
         <activity
             android:name=".WhereAmIActivity"
             android:label="@string/title_activity_where_am_i"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
