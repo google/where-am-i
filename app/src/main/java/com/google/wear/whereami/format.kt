@@ -20,19 +20,8 @@ import android.text.format.DateUtils
 import com.google.wear.whereami.data.LocationResult
 import java.time.Instant
 
-fun Context.getTimeAgo(time: Instant): CharSequence {
-    return DateUtils.getRelativeTimeSpanString(time.toEpochMilli())
-}
-
 fun Context.getAddressDescription(address: Address): String {
     val subThoroughfare = address.subThoroughfare
     val thoroughfare = address.thoroughfare ?: return address.countryName
     return (if (TextUtils.isEmpty(subThoroughfare)) "" else "$subThoroughfare ") + thoroughfare
-}
-
-fun Context.describeLocation(location: LocationResult): String {
-    return when  {
-        location.locationName != null -> location.locationName
-        else -> location.error.toString() + " " + location.errorMessage
-    }
 }

@@ -18,23 +18,12 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Bundle
 import android.widget.TextView
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.Button
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
@@ -70,40 +59,11 @@ class WhereAmIActivity : AppCompatActivity() {
     fun LocationComponent(flow: Flow<LocationResult>) {
         val flowState = flow.collectAsState(LocationResult.Unknown)
 
-        LocationComponent(flowState.value)
-    }
-
-    @Composable
-    fun LocationComponent(location: LocationResult) {
-        MaterialTheme {
-            Column(modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(text = location.description)
-                Text(text = location.formattedTime)
-
-                val coroutineScope = rememberCoroutineScope()
-
-                val refreshOnClick: () -> Unit = {
-                    coroutineScope.launch {
-                        locationViewModel.readFreshLocationResult()
-                    }
-                }
-
-                Button(onClick = { println("Click") }) {
-                    Text(text = "Refresh")
-                }
-            }
-        }
-    }
-
-    @Preview(uiMode = Configuration.UI_MODE_NIGHT_NO or Configuration.UI_MODE_TYPE_WATCH,
-        device = "id:wear_round", widthDp = 240, heightDp = 240
-    )
-    @Composable
-    fun ComposablePreview() {
-        LocationComponent(LocationResult(locationName = "1600 Amphitheatre Parkway"))
+        LocationResultDisplay(
+            flowState.value,
+            refreshFn = {
+                locationViewModel.readFreshLocationResult()
+            })
     }
 
     override fun onResume() {
