@@ -27,7 +27,6 @@ class WhereAmIApplication : Application(), LifecycleObserver {
 
             // publish location changes to database
             launch {
-                println("subscribe")
                 locationViewModel.subscribe()
             }
 

@@ -126,7 +126,7 @@ class LocationViewModel(
             smallestDisplacement = 50f
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
             fastestInterval = Duration.ofSeconds(5).toMillis()
-            interval = Duration.ofMinutes(2).toMillis()
+            interval = Duration.ofMinutes(5).toMillis()
         }
         coLocation.getLocationUpdates(request).collect { freshLocation ->
             locationDao.upsertLocation(readFreshLocationResult(freshLocation))

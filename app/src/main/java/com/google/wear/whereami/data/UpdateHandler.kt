@@ -19,7 +19,7 @@ class UpdateHandler(private val applicationContext: Context) {
         val newFreshness = value.freshness
 
         val dropping = newFreshness > oldFreshness
-        Log.i("WhereAmI", "Freshness check: old: $oldFreshness new: $newFreshness dropping: $dropping")
+        Log.i("WhereAmI", "Freshness check: old: $oldFreshness new: $newFreshness dropping: $dropping time: ${value.time}")
 
         if (dropping) {
             Log.i("WhereAmI", "Dropping update")
