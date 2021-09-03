@@ -23,15 +23,12 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.wear.whereami.WhereAmIActivity
 import com.google.wear.whereami.WhereAmIApplication
+import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
-import com.google.wear.whereami.describeLocation
 import com.google.wear.whereami.kt.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.asListenableFuture
-import kotlinx.coroutines.withContext
 
 const val STABLE_RESOURCES_VERSION = "1"
 
@@ -58,7 +55,15 @@ class WhereAmITileProviderService : TileProviderService() {
 
     private suspend fun suspendTileRequest(requestParams: RequestBuilders.TileRequest): Tile {
         return withContext(Dispatchers.IO) {
-            val location = locationViewModel.locationStream().first()
+            val location = locationViewModel.databaseLocationStream().first()
+
+            // Force a refresh if we have stale (> 20 minutes) results or errors
+            if (location.freshness > LocationResult.Freshness.STALE_EXACT) {
+                applicationScope.launch {
+                    // force a refresh
+                    locationViewModel.readFreshLocationResult(freshLocation = null)
+                }
+            }
 
             tile {
                 setResourcesVersion(STABLE_RESOURCES_VERSION)
@@ -71,7 +76,7 @@ class WhereAmITileProviderService : TileProviderService() {
 
                                 setModifiers(
                                     modifiers {
-                                        setSemantics(describeLocation(location).toContentDescription())
+                                        setSemantics(location.description.toContentDescription())
                                         setClickable(
                                             activityClickable(
                                                 this@WhereAmITileProviderService.packageName,
@@ -86,7 +91,7 @@ class WhereAmITileProviderService : TileProviderService() {
                                         setFontStyle(fontStyle {
                                             setSize(16f.toSpProp())
                                         })
-                                        setText(describeLocation(location))
+                                        setText(location.description)
                                     }
                                 )
                                 addContent(

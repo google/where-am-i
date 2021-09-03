@@ -5,14 +5,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.OnLifecycleEvent
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.google.wear.whereami.complication.WhereAmIComplicationProviderService.Companion.forceComplicationUpdate
 import com.google.wear.whereami.data.LocationViewModel
-import com.google.wear.whereami.tile.WhereAmITileProviderService.Companion.forceTileUpdate
+import com.google.wear.whereami.data.UpdateHandler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlin.time.ExperimentalTime
 
-class WhereAmIApplication: Application(), LifecycleObserver {
+class WhereAmIApplication : Application(), LifecycleObserver {
     lateinit var locationViewModel: LocationViewModel
     lateinit var applicationScope: CoroutineScope
 
@@ -26,18 +25,18 @@ class WhereAmIApplication: Application(), LifecycleObserver {
         applicationScope.launch {
             locationViewModel.setInitialLocation()
 
-            val flow = locationViewModel.locationStream()
-
-            flow.collect {
-                forceComplicationUpdate()
-                forceTileUpdate()
+            // publish location changes to database
+            launch {
+                println("subscribe")
+                locationViewModel.subscribe()
             }
-        }
 
-        applicationScope.launch {
-            while (true) {
-                locationViewModel.readFreshLocationResult()
-                delay(kotlin.time.Duration.seconds(30))
+            // database stored update stream
+            val flow = locationViewModel.databaseLocationStream()
+
+            val updateHandler = UpdateHandler(applicationContext)
+            flow.collect {
+                updateHandler.process(it)
             }
         }
 

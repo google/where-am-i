@@ -1,11 +1,8 @@
 package com.google.wear.whereami
 
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.Center
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +38,7 @@ fun LocationResultDisplay(location: LocationResult, refreshFn: suspend () -> Uni
                     .semantics {
                         testTag = "Location"
                         contentDescription = location.description
-                    },
+                    }.padding(horizontal = 20.dp),
             )
             Text(
                 text = location.formattedTime,

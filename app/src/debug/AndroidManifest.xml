@@ -2,17 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.google.wear.whereami">
 
-    <application>
+    <application
+        android:icon="@drawable/ic_my_location"
+        android:label="@string/app_name">
         <activity
             android:name=".tile.TilePreviewActivity"
             android:label="@string/tile_preview"
-            android:exported="true">
+            android:icon="@drawable/ic_my_location"
+            android:exported="true"
+            >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
     </application>
 </manifest>

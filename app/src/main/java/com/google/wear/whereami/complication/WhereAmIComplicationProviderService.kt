@@ -29,6 +29,7 @@ import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.kt.CoroutinesComplicationDataSourceService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -43,8 +44,17 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
     }
 
     override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest): ComplicationData {
-        val current = locationViewModel.locationStream().first()
-        return toComplicationData(complicationRequest.complicationType, current)
+        val location = locationViewModel.databaseLocationStream().first()
+
+        // Force a refresh if we have stale (> 20 minutes) results or errors
+        if (location.freshness > LocationResult.Freshness.STALE_EXACT) {
+            applicationScope.launch {
+                // force a refresh
+                locationViewModel.readFreshLocationResult(freshLocation = null)
+            }
+        }
+
+        return toComplicationData(complicationRequest.complicationType, location)
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {

@@ -14,18 +14,24 @@
 package com.google.wear.whereami.data
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Location
+import android.text.TextUtils
 import android.util.Log
 import com.google.android.gms.location.LocationRequest
-import com.google.wear.whereami.getAddressDescription
 import com.patloew.colocation.CoGeocoder
 import com.patloew.colocation.CoLocation
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.time.Duration
 import java.time.Instant
 
 class LocationViewModel(
@@ -35,24 +41,51 @@ class LocationViewModel(
     private val coLocation = CoLocation.from(applicationContext)
     private val locationDao = AppDatabase.getDatabase(applicationContext).locationDao()
 
-    suspend fun readFreshLocationResult(): LocationResult {
-        val permissionCheck = withContext(Dispatchers.Main) {
-            if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                LocationResult.PermissionError
-            } else {
-                null
+    suspend fun readFreshLocationResult(freshLocation: Location? = null): LocationResult {
+        val location = if (freshLocation == null) {
+            val permissionCheck = withContext(Dispatchers.Main) {
+                if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    LocationResult.PermissionError
+                } else {
+                    null
+                }
             }
+
+            if (permissionCheck != null) {
+                return permissionCheck
+            }
+
+            val start = System.currentTimeMillis()
+
+            try {
+                withContext(Dispatchers.IO) {
+                    coLocation.getCurrentLocation(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                }
+            } finally {
+                Log.i(
+                    "WhereAmI",
+                    "getCurrentLocation took " + (System.currentTimeMillis() - start)
+                )
+            }
+        } else {
+            freshLocation
         }
 
-        if (permissionCheck != null) {
-            return permissionCheck
+        if (location == null) {
+            return LocationResult.Unknown
         }
 
-        val location = withContext(Dispatchers.IO) {
-            var start = System.currentTimeMillis()
+        val locationResult = withContext(Dispatchers.IO) {
+            val start = System.currentTimeMillis()
 
-            val location = try {
-                coLocation.getCurrentLocation(LocationRequest.PRIORITY_HIGH_ACCURACY)
+            val address = try {
+                coGeocoder.getAddressFromLocation(location)
+            } catch (ioe: IOException) {
+                Log.w("WhereAmI", "getAddressFromLocation failed", ioe)
+                return@withContext LocationResult(
+                    error = LocationResult.ErrorType.Failed,
+                    errorMessage = ioe.message
+                )
             } finally {
                 Log.i(
                     "WhereAmI",
@@ -60,47 +93,47 @@ class LocationViewModel(
                 )
             }
 
-            if (location == null) {
+            if (address == null) {
                 LocationResult.Unknown
             } else {
-                start = System.currentTimeMillis()
-
-                val address = try {
-                    coGeocoder.getAddressFromLocation(location)
-                } catch (ioe: IOException) {
-                    Log.w("WhereAmI", "getAddressFromLocation failed", ioe)
-                    return@withContext LocationResult(
-                        error = LocationResult.ErrorType.Failed,
-                        errorMessage = ioe.message
-                    )
-                } finally {
-                    Log.i(
-                        "WhereAmI",
-                        "getAddressFromLocation took " + (System.currentTimeMillis() - start)
-                    )
-                }
-
-                if (address == null) {
-                    LocationResult.Unknown
-                } else {
-                    LocationResult(
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        locationName = applicationContext.getAddressDescription(address),
-                        time = Instant.ofEpochMilli(location.time)
-                    )
-                }
+                LocationResult(
+                    latitude = location.latitude,
+                    longitude = location.longitude,
+                    locationName = getAddressDescription(address),
+                    time = Instant.ofEpochMilli(location.time)
+                )
             }
         }
 
         withContext(Dispatchers.IO) {
-            locationDao.upsertLocation(location)
+            locationDao.upsertLocation(locationResult)
         }
 
-        return location
+        return locationResult
     }
 
-    fun locationStream(): Flow<LocationResult> {
+    fun getAddressDescription(address: Address): String {
+        val subThoroughfare = address.subThoroughfare
+        val thoroughfare = address.thoroughfare ?: return address.countryName
+        return (if (TextUtils.isEmpty(subThoroughfare)) "" else "$subThoroughfare ") + thoroughfare
+    }
+
+    @SuppressLint("MissingPermission")
+    @OptIn(ExperimentalCoroutinesApi::class)
+    suspend fun subscribe() {
+        val request = LocationRequest.create().apply {
+            isWaitForAccurateLocation = true
+            smallestDisplacement = 50f
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+            fastestInterval = Duration.ofSeconds(5).toMillis()
+            interval = Duration.ofMinutes(2).toMillis()
+        }
+        coLocation.getLocationUpdates(request).collect { freshLocation ->
+            locationDao.upsertLocation(readFreshLocationResult(freshLocation))
+        }
+    }
+
+    fun databaseLocationStream(): Flow<LocationResult> {
         return locationDao.getLocation().filterNotNull()
     }
 

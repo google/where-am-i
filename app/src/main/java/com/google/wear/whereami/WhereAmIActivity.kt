@@ -47,7 +47,7 @@ class WhereAmIActivity : AppCompatActivity() {
         lifecycleScope.launchWhenCreated {
             checkPermissions()
 
-            val flow = locationViewModel.locationStream()
+            val flow = locationViewModel.databaseLocationStream()
 
             setContent {
                 LocationComponent(flow)
@@ -62,7 +62,7 @@ class WhereAmIActivity : AppCompatActivity() {
         LocationResultDisplay(
             flowState.value,
             refreshFn = {
-                locationViewModel.readFreshLocationResult()
+                locationViewModel.readFreshLocationResult(freshLocation = null)
             })
     }
 
@@ -70,7 +70,7 @@ class WhereAmIActivity : AppCompatActivity() {
         super.onResume()
 
         lifecycleScope.launch {
-            locationViewModel.readFreshLocationResult()
+            locationViewModel.readFreshLocationResult(freshLocation = null)
         }
     }
 

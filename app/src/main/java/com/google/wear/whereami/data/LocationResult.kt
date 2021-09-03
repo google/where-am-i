@@ -3,6 +3,7 @@ package com.google.wear.whereami.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -33,6 +34,26 @@ data class LocationResult(
         NoPermission, Failed, Timeout, Unknown
     }
 
+    val freshness: Freshness
+        get() {
+            val age = Duration.between(time, Instant.now())
+
+            return when {
+                error == ErrorType.Unknown -> Freshness.UNKNOWN
+                age < THREE_MINUTES && locationName != null -> Freshness.FRESH_EXACT
+                age < TWENTY_MINUTES && locationName != null -> Freshness.STALE_EXACT
+                age < THREE_MINUTES && error != null -> Freshness.FRESH_ERROR
+                age < TWENTY_MINUTES && error != null -> Freshness.STALE_ERROR
+                age >= THREE_MINUTES && locationName != null -> Freshness.OLD_EXACT
+                age >= THREE_MINUTES && error != null -> Freshness.OLD_ERROR
+                else -> Freshness.UNKNOWN
+            }
+        }
+
+    enum class Freshness {
+        FRESH_EXACT, STALE_EXACT, FRESH_ERROR, STALE_ERROR, UNKNOWN, OLD_EXACT, OLD_ERROR
+    }
+
     companion object {
         val PermissionError: LocationResult = LocationResult(error = ErrorType.NoPermission)
         val Unknown: LocationResult = LocationResult(error = ErrorType.Unknown)
@@ -40,5 +61,8 @@ data class LocationResult(
         const val Current = 0
 
         val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+
+        val THREE_MINUTES = Duration.ofMinutes(3L)
+        val TWENTY_MINUTES = Duration.ofMinutes(20L)
     }
 }
