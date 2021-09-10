@@ -185,6 +185,7 @@ class LocationViewModel(
 
         val request = LocationRequest.create().apply {
             isWaitForAccurateLocation = true
+            smallestDisplacement = 10f
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
             fastestInterval = Duration.ofSeconds(15).toMillis()
             interval = Duration.ofSeconds(45).toMillis()

@@ -11,13 +11,11 @@ import kotlinx.coroutines.launch
 class LocationUpdatesBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val result: LocationResult? = LocationResult.extractResult(intent)
-        val location = result?.locations?.firstOrNull()
+        val location = result?.lastLocation
 
         if (location == null) {
             Log.w("WhereAmI", "No locations in update")
             return
-        } else if (result.locations.size > 0) {
-            Log.w("WhereAmI", "Multiple locations " + result.locations)
         }
 
         context.applicationScope.launch {
