@@ -33,12 +33,10 @@ class UpdateHandler(private val applicationContext: Context) {
 
             updateSent = Instant.now()
             withContext(Dispatchers.Main) {
+                Log.i("WhereAmI", "locationViewModel forcing updates")
                 applicationContext.forceComplicationUpdate()
                 applicationContext.forceTileUpdate()
             }
         }
-    }
-
-    companion object {
     }
 }

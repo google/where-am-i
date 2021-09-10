@@ -13,35 +13,31 @@
 // limitations under the License.
 package com.google.wear.whereami.kt
 
+import android.util.Log
 import androidx.wear.complications.data.ComplicationData
 import androidx.wear.complications.data.ComplicationType
 import androidx.wear.complications.datasource.ComplicationDataSourceService
 import androidx.wear.complications.datasource.ComplicationRequest
+import com.google.wear.whereami.applicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 abstract class CoroutinesComplicationDataSourceService : ComplicationDataSourceService() {
-    private val serviceJob = Job()
-    private val serviceScope = CoroutineScope(Dispatchers.Default + serviceJob)
-
-    override fun onDestroy() {
-        super.onDestroy()
-        serviceJob.cancel()
-    }
-
     override fun onComplicationActivated(complicationInstanceId: Int, type: ComplicationType) {
+        Log.i("WhereAmI", "onComplicationActivated $complicationInstanceId")
     }
 
     override fun onComplicationDeactivated(complicationInstanceId: Int) {
+        Log.i("WhereAmI", "onComplicationDeactivated $complicationInstanceId")
     }
 
     override fun onComplicationRequest(
         request: ComplicationRequest,
         listener: ComplicationRequestListener
     ) {
-        serviceScope.launch(Dispatchers.IO) {
+        applicationScope.launch {
             listener.onComplicationData(onComplicationUpdate(request))
         }
     }

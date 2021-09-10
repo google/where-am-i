@@ -15,20 +15,24 @@ package com.google.wear.whereami.data
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Location
 import android.text.TextUtils
 import android.util.Log
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.wear.whereami.LocationUpdatesBroadcastReceiver
 import com.patloew.colocation.CoGeocoder
 import com.patloew.colocation.CoLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.time.Duration
@@ -40,6 +44,14 @@ class LocationViewModel(
     private val coGeocoder = CoGeocoder.from(applicationContext)
     private val coLocation = CoLocation.from(applicationContext)
     private val locationDao = AppDatabase.getDatabase(applicationContext).locationDao()
+    private val updateHandler = UpdateHandler(applicationContext)
+
+    val locationServices = LocationServices.getFusedLocationProviderClient(applicationContext)
+
+    val intent: PendingIntent = Intent(applicationContext, LocationUpdatesBroadcastReceiver::class.java).run {
+        action = LocationUpdatesBroadcastReceiver.ACTION_PROCESS_UPDATES
+        PendingIntent.getBroadcast(applicationContext, 0, this, PendingIntent.FLAG_UPDATE_CURRENT)
+    }
 
     suspend fun readFreshLocationResult(freshLocation: Location? = null): LocationResult {
         val location = if (freshLocation == null) {
@@ -109,6 +121,8 @@ class LocationViewModel(
             locationDao.upsertLocation(locationResult)
         }
 
+        updateHandler.process(locationResult)
+
         return locationResult
     }
 
@@ -121,16 +135,26 @@ class LocationViewModel(
     @SuppressLint("MissingPermission")
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun subscribe() {
+        val permissionCheck = withContext(Dispatchers.Main) {
+            applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            Log.w("WhereAmI", "location permission not granted: $permissionCheck")
+            return
+        }
+
         val request = LocationRequest.create().apply {
             isWaitForAccurateLocation = true
-            smallestDisplacement = 50f
+            smallestDisplacement = 10f
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-            fastestInterval = Duration.ofSeconds(5).toMillis()
-            interval = Duration.ofMinutes(5).toMillis()
+            fastestInterval = Duration.ofSeconds(35).toMillis()
+            interval = Duration.ofMinutes(1).toMillis()
+            maxWaitTime = Duration.ofMinutes(15).toMillis()
         }
-        coLocation.getLocationUpdates(request).collect { freshLocation ->
-            locationDao.upsertLocation(readFreshLocationResult(freshLocation))
-        }
+
+        val task = locationServices.requestLocationUpdates(request, intent)
+        task.await()
     }
 
     fun databaseLocationStream(): Flow<LocationResult> {

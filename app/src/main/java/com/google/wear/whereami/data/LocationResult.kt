@@ -60,9 +60,9 @@ data class LocationResult(
 
         const val Current = 0
 
-        val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        val timeFormatter: DateTimeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
 
-        val THREE_MINUTES = Duration.ofMinutes(3L)
-        val TWENTY_MINUTES = Duration.ofMinutes(20L)
+        val THREE_MINUTES: Duration = Duration.ofMinutes(3L)
+        val TWENTY_MINUTES: Duration = Duration.ofMinutes(20L)
     }
 }

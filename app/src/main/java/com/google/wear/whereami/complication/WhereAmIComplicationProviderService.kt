@@ -23,24 +23,22 @@ import androidx.wear.complications.datasource.ComplicationDataSourceUpdateReques
 import androidx.wear.complications.datasource.ComplicationRequest
 import com.google.wear.whereami.R
 import com.google.wear.whereami.WhereAmIActivity.Companion.tapAction
-import com.google.wear.whereami.WhereAmIApplication
+import com.google.wear.whereami.applicationScope
 import com.google.wear.whereami.data.LocationResult
-import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.kt.CoroutinesComplicationDataSourceService
-import kotlinx.coroutines.CoroutineScope
+import com.google.wear.whereami.locationViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceService() {
-    private lateinit var applicationScope: CoroutineScope
-    private lateinit var locationViewModel: LocationViewModel
+    override fun onComplicationActivated(complicationInstanceId: Int, type: ComplicationType) {
+        super.onComplicationActivated(complicationInstanceId, type)
+    }
 
-    override fun onCreate() {
-        super.onCreate()
-        locationViewModel = (this.applicationContext as WhereAmIApplication).locationViewModel
-        applicationScope = (this.applicationContext as WhereAmIApplication).applicationScope
+    override fun onComplicationDeactivated(complicationInstanceId: Int) {
+        super.onComplicationDeactivated(complicationInstanceId)
     }
 
     override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest): ComplicationData {
@@ -111,7 +109,7 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
         }
     }
 
-    fun getTimeAgoComplicationText(fromTime: Instant): TimeDifferenceComplicationText.Builder {
+    private fun getTimeAgoComplicationText(fromTime: Instant): TimeDifferenceComplicationText.Builder {
         return TimeDifferenceComplicationText.Builder(
             TimeDifferenceStyle.SHORT_SINGLE_UNIT,
             CountUpTimeReference(fromTime)
@@ -121,7 +119,7 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
         }
     }
 
-    fun getAddressDescriptionText(location: LocationResult): ComplicationText {
+    private fun getAddressDescriptionText(location: LocationResult): ComplicationText {
         return if (location.locationName != null) {
             return PlainComplicationText.Builder(location.locationName).build()
         } else {
@@ -131,14 +129,12 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
 
     companion object {
         fun Context.forceComplicationUpdate() {
-            if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                val request = ComplicationDataSourceUpdateRequester.create(
-                    applicationContext, ComponentName(
-                        applicationContext, WhereAmIComplicationProviderService::class.java
-                    )
+            val request = ComplicationDataSourceUpdateRequester.create(
+                applicationContext, ComponentName(
+                    applicationContext, WhereAmIComplicationProviderService::class.java
                 )
-                request.requestUpdateAll()
-            }
+            )
+            request.requestUpdateAll()
         }
     }
 }

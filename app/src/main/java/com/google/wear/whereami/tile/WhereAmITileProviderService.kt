@@ -18,37 +18,32 @@ import androidx.wear.tiles.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.ResourceBuilders
 import androidx.wear.tiles.TileBuilders.Tile
-import androidx.wear.tiles.TileProviderService
+import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.wear.whereami.WhereAmIActivity
-import com.google.wear.whereami.WhereAmIApplication
+import com.google.wear.whereami.applicationScope
 import com.google.wear.whereami.data.LocationResult
-import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.kt.*
-import kotlinx.coroutines.*
+import com.google.wear.whereami.locationViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.asListenableFuture
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 const val STABLE_RESOURCES_VERSION = "1"
 
-class WhereAmITileProviderService : TileProviderService() {
-    private lateinit var applicationScope: CoroutineScope
-    private lateinit var locationViewModel: LocationViewModel
-
-    override fun onCreate() {
-        super.onCreate()
-
-        locationViewModel = (this.applicationContext as WhereAmIApplication).locationViewModel
-        applicationScope = (this.applicationContext as WhereAmIApplication).applicationScope
-    }
-
+class WhereAmITileProviderService : TileService() {
     override fun onResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
-        return Futures.immediateFuture(ResourceBuilders.Resources.builder().setVersion(STABLE_RESOURCES_VERSION).build())
+        return Futures.immediateFuture(
+            ResourceBuilders.Resources.Builder().setVersion(STABLE_RESOURCES_VERSION).build()
+        )
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<Tile> {
-        return applicationScope.async {
+        return this.applicationScope.async {
             suspendTileRequest(requestParams)
         }.asListenableFuture()
     }
@@ -61,12 +56,15 @@ class WhereAmITileProviderService : TileProviderService() {
             if (location.freshness > LocationResult.Freshness.STALE_EXACT) {
                 applicationScope.launch {
                     // force a refresh
-                    locationViewModel.readFreshLocationResult(freshLocation = null)
+                    locationViewModel.readFreshLocationResult(
+                        freshLocation = null
+                    )
                 }
             }
 
             tile {
                 setResourcesVersion(STABLE_RESOURCES_VERSION)
+                setFreshnessIntervalMillis(0L)
 
                 timeline {
                     timelineEntry {

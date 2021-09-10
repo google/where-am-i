@@ -1,14 +1,14 @@
 package com.google.wear.whereami
 
 import android.app.Application
-import androidx.lifecycle.Lifecycle
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
-import androidx.lifecycle.ProcessLifecycleOwner
 import com.google.wear.whereami.data.LocationViewModel
-import com.google.wear.whereami.data.UpdateHandler
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlin.time.ExperimentalTime
 
 class WhereAmIApplication : Application(), LifecycleObserver {
@@ -23,27 +23,18 @@ class WhereAmIApplication : Application(), LifecycleObserver {
         locationViewModel = LocationViewModel(applicationContext)
 
         applicationScope.launch {
+            // Populate an unknown location if not existing value
             locationViewModel.setInitialLocation()
 
-            // publish location changes to database
-            launch {
-                locationViewModel.subscribe()
-            }
-
-            // database stored update stream
-            val flow = locationViewModel.databaseLocationStream()
-
-            val updateHandler = UpdateHandler(applicationContext)
-            flow.collect {
-                updateHandler.process(it)
-            }
+            // Subscribe the LocationUpdatesBroadcastReceiver
+            Log.i("WhereAmI", "locationViewModel.subscribe")
+            locationViewModel.subscribe()
         }
-
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
-    }
-
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    fun onAppShutdown() {
-        applicationScope.cancel()
     }
 }
+
+val Context.locationViewModel: LocationViewModel
+    get() = (this.applicationContext as WhereAmIApplication).locationViewModel
+
+val Context.applicationScope: CoroutineScope
+    get() = (this.applicationContext as WhereAmIApplication).applicationScope

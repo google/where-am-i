@@ -86,6 +86,13 @@
                 android:name="androidx.wear.tiles.PREVIEW"
                 android:resource="@drawable/ic_my_location" />
         </service>
+
+        <receiver android:name=".LocationUpdatesBroadcastReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.wear.whereami.locationupdatespendingintent.action.PROCESS_UPDATES" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
