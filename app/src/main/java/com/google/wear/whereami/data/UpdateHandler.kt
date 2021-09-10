@@ -31,15 +31,15 @@ class UpdateHandler(private val applicationContext: Context) {
 
             // updates more frequently than 30 seconds are dropped
             if (Instant.now() < updateSent.plusSeconds(30)) {
-                Log.i("WhereAmI", "delaying updates")
+                Log.i("WhereAmI", "also sending a delayed updates")
 
                 applicationContext.applicationScope.launch {
                     delay(Duration.ofSeconds(30).toMillis())
                     sendUpdate()
                 }
-            } else {
-                sendUpdate()
             }
+
+            sendUpdate()
         }
     }
 

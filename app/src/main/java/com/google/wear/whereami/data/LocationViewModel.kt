@@ -26,11 +26,13 @@ import android.util.Log
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.wear.whereami.LocationUpdatesBroadcastReceiver
+import com.google.wear.whereami.locationViewModel
 import com.patloew.colocation.CoGeocoder
 import com.patloew.colocation.CoLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -48,10 +50,16 @@ class LocationViewModel(
 
     val locationServices = LocationServices.getFusedLocationProviderClient(applicationContext)
 
-    val intent: PendingIntent = Intent(applicationContext, LocationUpdatesBroadcastReceiver::class.java).run {
-        action = LocationUpdatesBroadcastReceiver.ACTION_PROCESS_UPDATES
-        PendingIntent.getBroadcast(applicationContext, 0, this, PendingIntent.FLAG_UPDATE_CURRENT)
-    }
+    val intent: PendingIntent =
+        Intent(applicationContext, LocationUpdatesBroadcastReceiver::class.java).run {
+            action = LocationUpdatesBroadcastReceiver.ACTION_PROCESS_UPDATES
+            PendingIntent.getBroadcast(
+                applicationContext,
+                0,
+                this,
+                PendingIntent.FLAG_UPDATE_CURRENT
+            )
+        }
 
     suspend fun readFreshLocationResult(freshLocation: Location? = null): LocationResult {
         val location = if (freshLocation == null) {
@@ -163,5 +171,28 @@ class LocationViewModel(
 
     fun setInitialLocation() {
         locationDao.insertLocation(LocationResult.Unknown)
+    }
+
+    suspend fun subscribeRealtime() {
+        val permissionCheck = withContext(Dispatchers.Main) {
+            applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            Log.w("WhereAmI", "realtime... location permission not granted: $permissionCheck")
+            return
+        }
+
+        val request = LocationRequest.create().apply {
+            isWaitForAccurateLocation = true
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+            fastestInterval = Duration.ofSeconds(15).toMillis()
+            interval = Duration.ofSeconds(45).toMillis()
+        }
+
+        Log.i("WhereAmI", "subscribeRealtime")
+        coLocation.getLocationUpdates(request).collect {
+            readFreshLocationResult(it)
+        }
     }
 }

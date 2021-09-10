@@ -19,15 +19,18 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.*
 import com.google.wear.whereami.data.LocationResult
 import com.google.wear.whereami.data.LocationViewModel
 import com.tbruyelle.rxpermissions2.RxPermissions
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.awaitSingle
 
 class WhereAmIActivity : AppCompatActivity() {
@@ -41,6 +44,16 @@ class WhereAmIActivity : AppCompatActivity() {
 
         lifecycleScope.launchWhenCreated {
             checkPermissions()
+
+            lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                    lifecycleScope.launch {
+                        locationViewModel.subscribeRealtime()
+                    }.also {
+                        it.cancelOnPause()
+                    }
+                }
+            }
 
             val flow = locationViewModel.databaseLocationStream()
 
@@ -81,4 +94,16 @@ class WhereAmIActivity : AppCompatActivity() {
             )
         }
     }
+
+    private fun Job.cancelOnPause() {
+        lifecycle.addObserver(object: LifecycleObserver {
+            @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+            fun pause() {
+                Log.i("WhereAmI", "Stopping realtime subscription")
+                lifecycle.removeObserver(this)
+                this@cancelOnPause.cancel()
+            }
+        })
+    }
 }
+
