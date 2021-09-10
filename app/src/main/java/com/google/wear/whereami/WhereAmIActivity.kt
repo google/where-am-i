@@ -45,13 +45,9 @@ class WhereAmIActivity : AppCompatActivity() {
         lifecycleScope.launchWhenCreated {
             checkPermissions()
 
-            lifecycleScope.launch {
+            launch {
                 repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                    lifecycleScope.launch {
-                        locationViewModel.subscribeRealtime()
-                    }.also {
-                        lifecycle.cancelOnPause(it)
-                    }
+                    locationViewModel.subscribeRealtime()
                 }
             }
 
@@ -94,15 +90,4 @@ class WhereAmIActivity : AppCompatActivity() {
             )
         }
     }
-}
-
-private fun Lifecycle.cancelOnPause(job: Job) {
-    this.addObserver(object: LifecycleObserver {
-        @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-        fun pause() {
-            Log.i("WhereAmI", "Stopping realtime subscription")
-            this@cancelOnPause.removeObserver(this)
-            job.cancel()
-        }
-    })
 }
