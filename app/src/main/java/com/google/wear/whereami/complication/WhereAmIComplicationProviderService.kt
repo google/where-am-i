@@ -13,11 +13,10 @@
 // limitations under the License.
 package com.google.wear.whereami.complication
 
-import android.Manifest
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
+import android.util.Log
 import androidx.wear.complications.data.*
 import androidx.wear.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.complications.datasource.ComplicationRequest
@@ -34,11 +33,11 @@ import java.util.concurrent.TimeUnit
 
 class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceService() {
     override fun onComplicationActivated(complicationInstanceId: Int, type: ComplicationType) {
-        super.onComplicationActivated(complicationInstanceId, type)
+        Log.i("WhereAmI", "onComplicationActivated $complicationInstanceId")
     }
 
     override fun onComplicationDeactivated(complicationInstanceId: Int) {
-        super.onComplicationDeactivated(complicationInstanceId)
+        Log.i("WhereAmI", "onComplicationDeactivated $complicationInstanceId")
     }
 
     override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest): ComplicationData {

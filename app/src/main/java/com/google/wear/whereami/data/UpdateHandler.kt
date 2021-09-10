@@ -2,13 +2,16 @@ package com.google.wear.whereami.data
 
 import android.content.Context
 import android.util.Log
+import com.google.wear.whereami.applicationScope
 import com.google.wear.whereami.complication.WhereAmIComplicationProviderService.Companion.forceComplicationUpdate
 import com.google.wear.whereami.tile.WhereAmITileProviderService.Companion.forceTileUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
+import kotlin.coroutines.coroutineContext
 
 class UpdateHandler(private val applicationContext: Context) {
     private var lastValue = LocationResult.Unknown
@@ -28,15 +31,23 @@ class UpdateHandler(private val applicationContext: Context) {
 
             // updates more frequently than 30 seconds are dropped
             if (Instant.now() < updateSent.plusSeconds(30)) {
-                delay(Duration.ofSeconds(30).toMillis())
-            }
+                Log.i("WhereAmI", "delaying updates")
 
-            updateSent = Instant.now()
-            withContext(Dispatchers.Main) {
-                Log.i("WhereAmI", "locationViewModel forcing updates")
-                applicationContext.forceComplicationUpdate()
-                applicationContext.forceTileUpdate()
+                applicationContext.applicationScope.launch {
+                    delay(Duration.ofSeconds(30).toMillis())
+                    sendUpdate()
+                }
+            } else {
+                sendUpdate()
             }
         }
+    }
+
+    private fun sendUpdate() {
+        updateSent = Instant.now()
+
+        Log.i("WhereAmI", "locationViewModel forcing updates")
+        applicationContext.forceComplicationUpdate()
+        applicationContext.forceTileUpdate()
     }
 }
