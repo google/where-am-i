@@ -41,6 +41,8 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
     }
 
     override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest): ComplicationData {
+        Log.i("WhereAmI", "onComplicationUpdate $complicationRequest")
+
         val location = locationViewModel.databaseLocationStream().first()
 
         // Force a refresh if we have stale (> 20 minutes) results or errors

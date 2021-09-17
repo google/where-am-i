@@ -14,6 +14,7 @@
 package com.google.wear.whereami.tile
 
 import android.content.Context
+import android.util.Log
 import androidx.wear.tiles.LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.ResourceBuilders
@@ -49,59 +50,59 @@ class WhereAmITileProviderService : TileService() {
     }
 
     private suspend fun suspendTileRequest(requestParams: RequestBuilders.TileRequest): Tile {
-        return withContext(Dispatchers.IO) {
-            val location = locationViewModel.databaseLocationStream().first()
+        Log.i("WhereAmI", "tileRequest $requestParams")
 
-            // Force a refresh if we have stale (> 20 minutes) results or errors
-            if (location.freshness > LocationResult.Freshness.STALE_EXACT) {
-                applicationScope.launch {
-                    // force a refresh
-                    locationViewModel.readFreshLocationResult(
-                        freshLocation = null
-                    )
-                }
+        val location = locationViewModel.databaseLocationStream().first()
+
+        // Force a refresh if we have stale (> 20 minutes) results or errors
+        if (location.freshness > LocationResult.Freshness.STALE_EXACT) {
+            applicationScope.launch {
+                // force a refresh
+                locationViewModel.readFreshLocationResult(
+                    freshLocation = null
+                )
             }
+        }
 
-            tile {
-                setResourcesVersion(STABLE_RESOURCES_VERSION)
-                setFreshnessIntervalMillis(0L)
+        return tile {
+            setResourcesVersion(STABLE_RESOURCES_VERSION)
+            setFreshnessIntervalMillis(0L)
 
-                timeline {
-                    timelineEntry {
-                        layout {
-                            column {
-                                setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
+            timeline {
+                timelineEntry {
+                    layout {
+                        column {
+                            setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
 
-                                setModifiers(
-                                    modifiers {
-                                        setSemantics(location.description.toContentDescription())
-                                        setClickable(
-                                            activityClickable(
-                                                this@WhereAmITileProviderService.packageName,
-                                                WhereAmIActivity::class.java.name
-                                            )
+                            setModifiers(
+                                modifiers {
+                                    setSemantics(location.description.toContentDescription())
+                                    setClickable(
+                                        activityClickable(
+                                            this@WhereAmITileProviderService.packageName,
+                                            WhereAmIActivity::class.java.name
                                         )
-                                    }
-                                )
-                                addContent(
-                                    text {
-                                        setMaxLines(2)
-                                        setFontStyle(fontStyle {
-                                            setSize(16f.toSpProp())
-                                        })
-                                        setText(location.description)
-                                    }
-                                )
-                                addContent(
-                                    text {
-                                        setMaxLines(1)
-                                        setFontStyle(fontStyle {
-                                            setSize(12f.toSpProp())
-                                        })
-                                        setText(location.formattedTime)
-                                    }
-                                )
-                            }
+                                    )
+                                }
+                            )
+                            addContent(
+                                text {
+                                    setMaxLines(2)
+                                    setFontStyle(fontStyle {
+                                        setSize(16f.toSpProp())
+                                    })
+                                    setText(location.description)
+                                }
+                            )
+                            addContent(
+                                text {
+                                    setMaxLines(1)
+                                    setFontStyle(fontStyle {
+                                        setSize(12f.toSpProp())
+                                    })
+                                    setText(location.formattedTime)
+                                }
+                            )
                         }
                     }
                 }

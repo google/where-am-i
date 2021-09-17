@@ -12,8 +12,8 @@ interface LocationDao {
     fun getLocation(id: Int = 0): Flow<LocationResult?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun upsertLocation(location: LocationResult)
+    suspend fun upsertLocation(location: LocationResult)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun insertLocation(location: LocationResult)
+    suspend fun insertLocation(location: LocationResult)
 }

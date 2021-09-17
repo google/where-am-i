@@ -20,6 +20,12 @@ data class LocationResult(
     @ColumnInfo(name = "errorMessage") val errorMessage: String? = null,
     @ColumnInfo(name = "time") val time: Instant = Instant.now(),
 ) {
+    fun newer(lastValue: LocationResult): Boolean {
+        val thatFreshness = lastValue.freshness
+        val thisFreshness = freshness
+        return thisFreshness < thatFreshness || (thisFreshness == thatFreshness && time > lastValue.time)
+    }
+
     val description: String
         get() {
             return locationName ?: errorMessage ?: error.toString()

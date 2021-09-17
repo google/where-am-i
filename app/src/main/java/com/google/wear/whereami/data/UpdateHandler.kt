@@ -18,13 +18,13 @@ class UpdateHandler(private val applicationContext: Context) {
     private var updateSent = Instant.ofEpochMilli(0)
 
     suspend fun process(value: LocationResult) {
-        val oldFreshness = lastValue.freshness
-        val newFreshness = value.freshness
+        val isNewer = value.newer(lastValue)
+        Log.i(
+            "WhereAmI",
+            "Freshness check: old: ${lastValue.freshness} new: ${value.freshness} isNewer: $isNewer time: ${value.time}"
+        )
 
-        val dropping = newFreshness > oldFreshness
-        Log.i("WhereAmI", "Freshness check: old: $oldFreshness new: $newFreshness dropping: $dropping time: ${value.time}")
-
-        if (dropping) {
+        if (!isNewer) {
             Log.i("WhereAmI", "Dropping update")
         } else {
             lastValue = value
