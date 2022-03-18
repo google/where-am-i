@@ -1,0 +1,24 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Complication" type="AndroidComplicationConfigurationType" factoryName="AndroidComplicationConfigurationFactory" show_console_on_std_err="false" show_console_on_std_out="false">
+    <module name="where-am-i.app" />
+    <option name="allowRunningInParallel" value="false" />
+    <option name="chosenSlots">
+      <list>
+        <ChosenSlot>
+          <option name="id" value="0" />
+          <option name="type" value="LONG_TEXT" />
+        </ChosenSlot>
+      </list>
+    </option>
+    <option name="componentName" value="com.google.wear.whereami.complication.WhereAmIComplicationProviderService" />
+    <option name="installFlags" value="" />
+    <option name="projectPathOnTarget" />
+    <option name="selectedOptions">
+      <list />
+    </option>
+    <method v="2">
+      <option name="Make" enabled="true" />
+      <option name="Android.Gradle.BeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

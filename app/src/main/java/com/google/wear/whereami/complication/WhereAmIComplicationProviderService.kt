@@ -31,6 +31,7 @@ import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.data.TimeDifferenceComplicationText
 import androidx.wear.watchface.complications.data.TimeDifferenceStyle
+import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import com.google.wear.whereami.R
 import com.google.wear.whereami.WhereAmIActivity.Companion.tapAction
@@ -137,7 +138,7 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
         fun Context.forceComplicationUpdate() {
             if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 val request =
-                    androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester.create(
+                    ComplicationDataSourceUpdateRequester.create(
                         applicationContext, ComponentName(
                             applicationContext, WhereAmIComplicationProviderService::class.java
                         )
