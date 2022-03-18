@@ -21,9 +21,17 @@ import android.graphics.drawable.Icon
 import android.location.Address
 import android.location.Location
 import android.location.LocationManager
-import androidx.wear.complications.data.*
-import androidx.wear.complications.datasource.ComplicationDataSourceUpdateRequester
-import androidx.wear.complications.datasource.ComplicationRequest
+import androidx.wear.watchface.complications.data.ComplicationData
+import androidx.wear.watchface.complications.data.ComplicationText
+import androidx.wear.watchface.complications.data.ComplicationType
+import androidx.wear.watchface.complications.data.CountUpTimeReference
+import androidx.wear.watchface.complications.data.LongTextComplicationData
+import androidx.wear.watchface.complications.data.MonochromaticImage
+import androidx.wear.watchface.complications.data.PlainComplicationText
+import androidx.wear.watchface.complications.data.ShortTextComplicationData
+import androidx.wear.watchface.complications.data.TimeDifferenceComplicationText
+import androidx.wear.watchface.complications.data.TimeDifferenceStyle
+import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import com.google.wear.whereami.R
 import com.google.wear.whereami.WhereAmIActivity.Companion.tapAction
 import com.google.wear.whereami.data.LocationResult
@@ -31,6 +39,7 @@ import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.data.ResolvedLocation
 import com.google.wear.whereami.getAddressDescription
 import com.google.wear.whereami.kt.CoroutinesComplicationDataSourceService
+import java.time.Instant
 import java.util.*
 import java.util.concurrent.TimeUnit
 
@@ -43,7 +52,10 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
     }
 
     override suspend fun onComplicationUpdate(complicationRequest: ComplicationRequest) =
-        toComplicationData(complicationRequest.complicationType, locationViewModel.readLocationResult())
+        toComplicationData(
+            complicationRequest.complicationType,
+            locationViewModel.readLocationResult()
+        )
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {
         val location = Location(LocationManager.GPS_PROVIDER)
@@ -95,7 +107,7 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
         }
     }
 
-    fun getTimeAgoComplicationText(fromTime: Long): TimeDifferenceComplicationText.Builder {
+    fun getTimeAgoComplicationText(fromTime: Instant): TimeDifferenceComplicationText.Builder {
         return TimeDifferenceComplicationText.Builder(
             TimeDifferenceStyle.SHORT_SINGLE_UNIT,
             CountUpTimeReference(fromTime)
@@ -107,7 +119,7 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
 
     fun getTimeAgoComplicationText(location: LocationResult): ComplicationText {
         return if (location is ResolvedLocation) {
-            getTimeAgoComplicationText(location.location.time).build()
+            getTimeAgoComplicationText(Instant.ofEpochMilli(location.location.time)).build()
         } else {
             PlainComplicationText.Builder("--").build()
         }
@@ -124,11 +136,12 @@ class WhereAmIComplicationProviderService : CoroutinesComplicationDataSourceServ
     companion object {
         fun Context.forceComplicationUpdate() {
             if (applicationContext.checkCallingOrSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                val request = ComplicationDataSourceUpdateRequester(
-                    applicationContext, ComponentName(
-                        applicationContext, WhereAmIComplicationProviderService::class.java
+                val request =
+                    androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester.create(
+                        applicationContext, ComponentName(
+                            applicationContext, WhereAmIComplicationProviderService::class.java
+                        )
                     )
-                )
                 request.requestUpdateAll()
             }
         }

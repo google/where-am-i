@@ -14,17 +14,15 @@
 package com.google.wear.whereami.data
 
 import android.Manifest
-import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
-import androidx.wear.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.google.android.gms.location.LocationRequest
 import com.patloew.colocation.CoGeocoder
 import com.patloew.colocation.CoLocation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class LocationViewModel(val applicationContext: Context) {
+class LocationViewModel(private val applicationContext: Context) {
     private val coGeocoder = CoGeocoder.from(applicationContext)
     private val coLocation = CoLocation.from(applicationContext)
 
