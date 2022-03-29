@@ -22,12 +22,13 @@ import android.os.Bundle
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import com.fondesa.kpermissions.allGranted
+import com.fondesa.kpermissions.coroutines.sendSuspend
+import com.fondesa.kpermissions.extension.permissionsBuilder
 import com.google.wear.whereami.complication.WhereAmIComplicationProviderService.Companion.forceComplicationUpdate
 import com.google.wear.whereami.data.LocationViewModel
 import com.google.wear.whereami.data.ResolvedLocation
-import com.tbruyelle.rxpermissions2.RxPermissions
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.rx2.awaitSingle
 
 class WhereAmIActivity : FragmentActivity() {
     private lateinit var locationViewModel: LocationViewModel
@@ -67,11 +68,9 @@ class WhereAmIActivity : FragmentActivity() {
     }
 
     suspend fun checkPermissions() {
-        RxPermissions(this)
-            .request(Manifest.permission.ACCESS_FINE_LOCATION)
-            .doOnNext { isGranted ->
-                if (!isGranted) throw SecurityException("No location permission")
-            }.awaitSingle()
+        val result = permissionsBuilder(Manifest.permission.ACCESS_FINE_LOCATION).build().sendSuspend()
+
+        if (!result.allGranted()) throw SecurityException("No location permission")
     }
 
     companion object {
